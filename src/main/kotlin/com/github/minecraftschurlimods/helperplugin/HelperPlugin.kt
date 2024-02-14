@@ -57,7 +57,7 @@ class HelperPlugin : Plugin<Project> {
                 url = uri(layout.buildDirectory.dir("repo"))
             }
         }
-        val publication = publishing.publications.create<MavenPublication>(helperExtension.projectId.get() + "ToMaven") {
+        helperExtension.publication = publishing.publications.create<MavenPublication>(helperExtension.projectId.get() + "ToMaven") {
             groupId = helperExtension.projectGroup.get()
             artifactId = helperExtension.projectId.get()
             version = helperExtension.fullVersion.get()
@@ -71,13 +71,17 @@ class HelperPlugin : Plugin<Project> {
                     developerConnection.set(helperExtension.gitHub.developerConnection)
                     url.set(helperExtension.gitHub.url)
                 }
-                issueManagement {
-                    system.set("GitHub Issues")
-                    url.set(helperExtension.gitHub.issuesUrl)
+                if (helperExtension.gitHub.issuesUrl.isPresent) {
+                    issueManagement {
+                        system.set("github")
+                        url.set(helperExtension.gitHub.issuesUrl)
+                    }
                 }
-                ciManagement {
-                    system.set("GitHub Actions")
-                    url.set(helperExtension.gitHub.actionsUrl)
+                if (helperExtension.gitHub.actionsUrl.isPresent) {
+                    ciManagement {
+                        system.set("github")
+                        url.set(helperExtension.gitHub.actionsUrl)
+                    }
                 }
                 licenses {
                     license {
@@ -88,7 +92,6 @@ class HelperPlugin : Plugin<Project> {
                 }
             }
         }
-        helperExtension.publication = publication
         return helperExtension
     }
 
