@@ -81,7 +81,7 @@ open class HelperExtension @Inject constructor(project: Project) {
 
     open class License @Inject constructor(project: Project) {
         val file: Property<String> = project.objects.property<String>()
-            .convention(project.localGradleProperty("license.file"))
+            .convention(project.localGradleProperty("license.file").orElse("LICENSE"))
         val name: Property<String> = project.objects.property<String>()
             .convention(project.localGradleProperty("license.name"))
         val url: Property<String> = project.objects.property<String>()
