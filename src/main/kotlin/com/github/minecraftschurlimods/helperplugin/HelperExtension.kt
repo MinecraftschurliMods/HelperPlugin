@@ -3,7 +3,6 @@
 package com.github.minecraftschurlimods.helperplugin
 
 import org.gradle.api.Project
-import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.maven.MavenPublication
@@ -12,7 +11,6 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
-import org.gradle.kotlin.dsl.the
 import java.net.URI
 import javax.inject.Inject
 
