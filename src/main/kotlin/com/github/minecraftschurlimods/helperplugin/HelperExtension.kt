@@ -229,9 +229,6 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         project.runs {
             configureEach {
                 workingDirectory.set(project.layout.projectDirectory.dir("run"))
-                if (name != "data") {
-                    systemProperties.put("forge.enabledGameTestNamespaces", projectId)
-                }
                 systemProperties.put("forge.logging.markers", "REGISTRIES")
                 systemProperties.put("forge.logging.console.level", "debug")
                 modSources.add(project.sourceSets.main)
@@ -262,10 +259,14 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     fun withGameTestRuns() {
-        project.runs.create("gameTestServer") {
-            if (::testSourceSet.isInitialized) {
-                modSource(testSourceSet)
+        project.runs.configureEach {
+            if (name != "data") {
+                systemProperties.put("forge.enabledGameTestNamespaces", projectId)
+                if (::testSourceSet.isInitialized) {
+                    modSource(testSourceSet)
+                }
             }
         }
+        project.runs.create("gameTestServer")
     }
 }

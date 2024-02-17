@@ -1,6 +1,7 @@
 package com.github.minecraftschurlimods.helperplugin
 
 import com.akuleshov7.ktoml.annotations.TomlMultiline
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
 
