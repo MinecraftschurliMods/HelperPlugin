@@ -1,6 +1,7 @@
 plugins {
     `kotlin-dsl`
     `maven-publish`
+    kotlin("plugin.serialization") version "1.9.22"
 }
 
 repositories {
@@ -10,10 +11,11 @@ repositories {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.1"
+version = "1.2"
 base.archivesName = "HelperPlugin"
 
 dependencies {
+    implementation("com.akuleshov7:ktoml-core:0.5.1")
     implementation("net.neoforged.gradle:userdev") {
         version {
             strictly("[7.0.80,7.1)")

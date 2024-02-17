@@ -1,16 +1,14 @@
 package com.github.minecraftschurlimods.helperplugin
 
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.plugins.BasePluginExtension
+import org.gradle.api.file.FileCollection
 import org.gradle.api.plugins.JavaPlugin
-import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.api.provider.MapProperty
-import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
@@ -24,14 +22,18 @@ import java.time.format.DateTimeFormatter
 
 class HelperPlugin : Plugin<Project> {    
     override fun apply(project: Project) {
-        project.apply<JavaPlugin>()
-        project.apply<MavenPublishPlugin>()
-        project.apply(plugin = "net.neoforged.gradle.userdev")
+        with(project) {
+            apply<JavaPlugin>()
+            apply<MavenPublishPlugin>()
+            apply(plugin = "net.neoforged.gradle.userdev")
 
-        val helperExtension = project.setupExtensions()
-        project.setupRepositories()
-        project.tasks.configureTasks(helperExtension)
-        project.setupArtifacts()
+            val helperExtension = setupExtensions()
+            setupPublishing(helperExtension)
+            setupJava(helperExtension)
+            setupRepositories()
+            configureTasks(helperExtension)
+            setupArtifacts()
+        }
     }
 
     private fun Project.setupExtensions(): HelperExtension {
@@ -39,13 +41,20 @@ class HelperPlugin : Plugin<Project> {
         group = helperExtension.projectGroup.get()
         version = helperExtension.fullVersion.get()
         base.archivesName.set(helperExtension.projectId)
-        java.withSourcesJar()
-        java.withJavadocJar()
-        java.toolchain {
+        return helperExtension
+    }
+
+    private fun Project.setupJava(helperExtension: HelperExtension) = java {
+        withSourcesJar()
+        withJavadocJar()
+        toolchain {
             languageVersion.set(helperExtension.java.version)
             vendor.set(helperExtension.java.vendor)
         }
-        publishing.repositories.maven {
+    }
+
+    private fun Project.setupPublishing(helperExtension: HelperExtension) = publishing {
+        repositories.maven {
             if (helperExtension.maven.valid.getOrElse(false)) {
                 url = helperExtension.maven.url.get()
                 credentials {
@@ -57,13 +66,13 @@ class HelperPlugin : Plugin<Project> {
                 url = uri(layout.buildDirectory.dir("repo"))
             }
         }
-        helperExtension.publication = publishing.publications.create<MavenPublication>(helperExtension.projectId.get() + "ToMaven") {
+        helperExtension.publication = publications.create<MavenPublication>(helperExtension.projectId.get() + "ToMaven") { 
             groupId = helperExtension.projectGroup.get()
             artifactId = helperExtension.projectId.get()
             version = helperExtension.fullVersion.get()
             from(components.getByName("java"))
             pom {
-                name.set(this@setupExtensions.name)
+                name.set(this.name)
                 url.set(helperExtension.projectUrl)
                 packaging = "jar"
                 scm {
@@ -92,7 +101,6 @@ class HelperPlugin : Plugin<Project> {
                 }
             }
         }
-        return helperExtension
     }
 
     private fun Project.setupRepositories() = repositories {
@@ -104,7 +112,7 @@ class HelperPlugin : Plugin<Project> {
         }
     }
 
-    private fun TaskContainer.configureTasks(helperExtension: HelperExtension) {
+    private fun Project.configureTasks(helperExtension: HelperExtension) = tasks {
         createSetupGitHubActionsTask(helperExtension)
         withType<JavaCompile>().configureEach {
             options.encoding = "UTF-8"
@@ -141,6 +149,49 @@ class HelperPlugin : Plugin<Project> {
                 "LICENSE"                to helperExtension.license.name.get()
             )
         }
+        processResources {
+            val files: FileCollection = project.fileTree("dir" to destinationDir.path, "include" to "**/*.json")
+            doLast {
+                files.forEach {
+                    it.writeText(JsonOutput.toJson(JsonSlurper().parse(it)))
+                }
+            }
+        }
+        if (helperExtension.projectType.get() == HelperExtension.Type.MOD) {
+            val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
+                val modproperties = helperExtension.modproperties.orNull
+                val dependencies: List<Dependency>? = helperExtension.dependencies.orNull
+                val mcPublish = if (helperExtension.mcPublish.curseforge.isPresent || helperExtension.mcPublish.modrinth.isPresent) {
+                    McPublish(
+                        helperExtension.mcPublish.modrinth.orNull,
+                        helperExtension.mcPublish.curseforge.orNull
+                    )
+                } else null
+                val projectId = helperExtension.projectId.get()
+
+                modsToml.set(ModsToml(
+                    helperExtension.loader.name.get(),
+                    helperExtension.loader.version.get(),
+                    helperExtension.license.name.get(),
+                    listOf(Mod(
+                        projectId,
+                        helperExtension.projectVersion.get(),
+                        helperExtension.projectName.get(),
+                        helperExtension.projectUrl.get(),
+                        helperExtension.projectAuthors.get(),
+                        helperExtension.projectDescription.get()
+                    )),
+                    mcPublish,
+                    if (dependencies != null) mapOf(projectId to dependencies) else null,
+                    if (!modproperties.isNullOrEmpty()) mapOf(projectId to modproperties) else null
+                ))
+            }
+            processResources {
+                from(generateModsToml) {
+                    into("META-INF/")
+                }
+            }
+        }
     }
 
     private fun TaskContainer.createSetupGitHubActionsTask(helperExtension: HelperExtension) {
@@ -158,14 +209,5 @@ class HelperPlugin : Plugin<Project> {
         add("archives", tasks.named<Jar>("sourcesJar"))
         add("archives", tasks.named<Jar>("javadocJar"))
     }
-
-    private val Project.publishing: PublishingExtension
-        get() = this.the<PublishingExtension>()
-
-    private val Project.java: JavaPluginExtension
-        get() = this.the<JavaPluginExtension>()
-
-    private val Project.base: BasePluginExtension
-        get() = this.the<BasePluginExtension>()
 }
 
