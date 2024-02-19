@@ -157,12 +157,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         LIBRARY("GAMELIBRARY")
     }
 
-    private val neoforgeDependency by lazy { project.dependencyFactory.create("net.neoforged", "neoforge", neoVersion.get())/*.apply {
-        version {
-            strictly(neoVersionRange.get())
-            prefer(neoVersion.get())
-        }
-    }*/}
+    private val neoforgeDependency = neoVersion.map { project.dependencyFactory.create("net.neoforged", "neoforge", it) }
 
     fun neoforge() = neoforgeDependency
 

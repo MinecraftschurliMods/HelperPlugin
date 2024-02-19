@@ -72,7 +72,7 @@ class HelperPlugin : Plugin<Project> {
             version = helperExtension.fullVersion.get()
             from(components.getByName("java"))
             pom {
-                name.set(this.name)
+                name.set(helperExtension.projectName)
                 url.set(helperExtension.projectUrl)
                 packaging = "jar"
                 scm {
