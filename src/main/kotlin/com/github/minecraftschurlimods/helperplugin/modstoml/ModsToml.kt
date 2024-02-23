@@ -1,5 +1,6 @@
-package com.github.minecraftschurlimods.helperplugin
+package com.github.minecraftschurlimods.helperplugin.modstoml
 
+import com.akuleshov7.ktoml.annotations.TomlLiteral
 import com.akuleshov7.ktoml.annotations.TomlMultiline
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -10,6 +11,7 @@ data class ModsToml(
     val modLoader: String,
     val loaderVersion: String,
     val license: String,
+    val issueTrackerURL: String?,
     val mods: List<Mod>,
     @SerialName("mc-publish")
     val mcPublish: McPublish?,
@@ -22,10 +24,13 @@ data class Mod(
     val modId: String,
     val version: String,
     val displayName: String,
-    val displayURL: String,
-    val authors: String,
+    val displayURL: String?,
+    val logoFile: String?,
+    val credits: String?,
+    val authors: String?,
+    @TomlLiteral
     @TomlMultiline
-    val description: String,
+    val description: String?,
 ) : java.io.Serializable
 
 @Serializable
@@ -39,6 +44,6 @@ data class Dependency(
     val modId: String,
     val versionRange: String,
     val type: String,
-    val ordering: String = "NONE",
-    val side: String = "BOTH",
+    val ordering: String?,
+    val side: String?,
 ) : java.io.Serializable

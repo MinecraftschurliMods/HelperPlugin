@@ -2,16 +2,20 @@
 
 package com.github.minecraftschurlimods.helperplugin
 
-import net.neoforged.gradle.util.TransformerUtils
+import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependency
+import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependencyContainer
+import net.neoforged.gradle.common.tasks.JarJar
+import net.neoforged.gradle.dsl.common.runs.run.Run
+import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
@@ -35,7 +39,8 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     @get:Nested
     val mcPublish: McPublish = project.objects.newInstance(project)
 
-
+    val runningInCI: Property<Boolean> = project.objects.property<Boolean>()
+        .convention(project.providers.environmentVariable("CI").map { it.toBoolean() })
     val projectType: Property<Type> = project.objects.property<Type>()
         .convention(project.localGradleProperty("project_type").map { Type.valueOf(it) }.orElse(Type.MOD))
     val releaseType: Property<String> = project.objects.property<String>()
@@ -47,21 +52,25 @@ open class HelperExtension @Inject constructor(private val project: Project) {
             }
         }.orElse("SNAPSHOT"))
     val projectGroup: Property<String> = project.objects.property<String>()
-        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod_group"; Type.LIBRARY -> "lib_group" } }))
+        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.group"; Type.LIBRARY -> "lib.group" } }))
     val projectId: Property<String> = project.objects.property<String>()
-        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod_id"; Type.LIBRARY -> "lib_name" } }))
+        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.id"; Type.LIBRARY -> "lib.name" } }))
     val projectVersion: Property<String> = project.objects.property<String>()
-        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod_version"; Type.LIBRARY -> "lib_version" } }))
+        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.version"; Type.LIBRARY -> "lib.version" } }))
     val projectName: Property<String> = project.objects.property<String>()
-        .convention(projectType.flatMap { when(it) { Type.MOD -> project.localGradleProperty("mod_name"); Type.LIBRARY -> projectId } })
+        .convention(projectType.flatMap { when(it) { Type.MOD -> project.localGradleProperty("mod.name"); Type.LIBRARY -> projectId } })
+    val projectCredits: Property<String> = project.objects.property<String>()
+        .convention(project.localGradleProperty("mod.credits"))
     val projectAuthors: Property<String> = project.objects.property<String>()
-        .convention(project.localGradleProperty("mod_authors"))
+        .convention(project.localGradleProperty("mod.authors"))
     val projectDescription: Property<String> = project.objects.property<String>()
-        .convention(project.localGradleProperty("mod_description"))
+        .convention(project.localGradleProperty("mod.description"))
     val projectVendor: Property<String> = project.objects.property<String>()
-        .convention(project.localGradleProperty("vendor"))
+        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.vendor"; Type.LIBRARY -> "lib.vendor" } }))
     val projectUrl: Property<String> = project.objects.property<String>()
-        .convention(project.localGradleProperty("url").orElse(gitHub.url))
+        .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.url"; Type.LIBRARY -> "lib.url" } }).orElse(gitHub.url))
+    val projectLogo: Property<String> = project.objects.property<String>()
+        .convention(project.localGradleProperty("mod.logo"))
     val minecraftVersion: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty("mc_version"))
     val minecraftVersionRange: Property<String> = project.objects.property<String>()
@@ -76,22 +85,23 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         .convention(projectGroup.zip(projectId) { group, id -> "$group:$id" }.zip(fullVersion) { selector, version -> "$selector:$version" })
     val generatedResourcesDir: DirectoryProperty = project.objects.directoryProperty()
         .convention(project.layout.projectDirectory.dir("src/main/generated"))
-    val dependencies: ListProperty<Dependency> = project.objects.listProperty<Dependency>()
-        .value(projectType.map(TransformerUtils.guard { if (it == Type.MOD) listOf(
-            Dependency(
-                "neoforge",
-                neoVersionRange.get(),
-                "required"
-            ),
-            Dependency(
-                "minecraft",
-                minecraftVersionRange.get(),
-                "required"
-            )
-        ) else null }))
+    val dependencies: ModDependencyContainer = project.objects.newInstance<ModDependencyContainer>()
     val modproperties: MapProperty<String, String> = project.objects.mapProperty()
 
-    fun dependency(modId: String, versionRange: String, type: String, ordering: String = "NONE", side: String = "BOTH") = dependencies.add(Dependency(modId, versionRange, type, ordering, side))
+    init {
+        dependencies {
+            required("neoforge") {
+                versionRange.set(neoVersionRange)
+                ordering.set(ModDependency.Ordering.NONE)
+                side.set(ModDependency.Side.BOTH)
+            }
+            required("minecraft") {
+                versionRange.set(minecraftVersionRange)
+                ordering.set(ModDependency.Ordering.NONE)
+                side.set(ModDependency.Side.BOTH)
+            }
+        }
+    }
 
     open class GitHub @Inject constructor(project: Project) {
         val owner: Property<String> = project.objects.property<String>()
@@ -161,6 +171,21 @@ open class HelperExtension @Inject constructor(private val project: Project) {
 
     fun neoforge() = neoforgeDependency
 
+    private lateinit var jarJar: TaskProvider<JarJar>
+    fun withJarJar() {
+        if (::jarJar.isInitialized) return
+        val jar = project.tasks.named<Jar>("jar") {
+            archiveClassifier.set("slim")
+        }
+        jarJar = project.tasks.named<JarJar>("jarJar") {
+            archiveClassifier.set("")
+            with(jar.get())
+        }
+        project.artifacts.add("archives", jarJar)
+        publication.artifact(jarJar)
+        project.jarJar.component(publication)
+    }
+
     private lateinit var apiSourceSet: SourceSet
     fun withApiSourceSet() {
         if (::apiSourceSet.isInitialized) return
@@ -180,6 +205,11 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         }
         project.tasks.sourcesJar {
             from(apiSourceSet.allSource)
+        }
+        if (::jarJar.isInitialized) {
+            jarJar {
+                from(apiSourceSet.output)
+            }
         }
         val apiJar = project.tasks.register<Jar>("apiJar") {
             dependsOn(apiSourceSet.classesTaskName)
@@ -227,16 +257,21 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 systemProperties.put("forge.logging.markers", "REGISTRIES")
                 systemProperties.put("forge.logging.console.level", "debug")
                 modSources.add(project.sourceSets.main)
+                if (runningInCI.getOrElse(false)) {
+                    jvmArgument("-XX:+AllowEnhancedClassRedefinition")
+                }
             }
             create("client")
             create("server") {
+                singleInstance()
                 programArgument("--nogui")
             }
         }
     }
 
-    fun withDataGenRuns() {
+    fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
         project.runs.create("data") {
+            singleInstance()
             if (::dataGenSourceSet.isInitialized) {
                 modSource(dataGenSourceSet)
             }
@@ -247,13 +282,17 @@ open class HelperExtension @Inject constructor(private val project: Project) {
             programArguments.add(generatedResourcesDir.map { it.asFile.absolutePath })
             programArguments.add("--existing")
             programArguments.add(project.layout.projectDirectory.dir("src/main/resources/").asFile.absolutePath)
+            cfg.execute(this)
         }
-        project.sourceSets.main.configure {
-            resources.srcDir(generatedResourcesDir)
+        project.sourceSets.main {
+            resources {
+                srcDir(generatedResourcesDir)
+                exclude(".cache")
+            }
         }
     }
 
-    fun withGameTestRuns() {
+    fun withGameTestRuns(cfg: Action<Run> = Action<Run>{}) {
         project.runs.configureEach {
             if (name != "data") {
                 systemProperties.put("forge.enabledGameTestNamespaces", projectId)
@@ -262,6 +301,10 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 }
             }
         }
-        project.runs.create("gameTestServer")
+        project.runs.create("gameTestServer") {
+            singleInstance()
+            jvmArgument("-ea")
+            cfg.execute(this)
+        }
     }
 }

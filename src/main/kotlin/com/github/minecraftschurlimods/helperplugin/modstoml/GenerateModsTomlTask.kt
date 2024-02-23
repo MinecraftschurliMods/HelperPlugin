@@ -1,4 +1,4 @@
-package com.github.minecraftschurlimods.helperplugin
+package com.github.minecraftschurlimods.helperplugin.modstoml
 
 import com.akuleshov7.ktoml.Toml
 import kotlinx.serialization.encodeToString

@@ -1,5 +1,6 @@
 package com.github.minecraftschurlimods.helperplugin
 
+import com.github.minecraftschurlimods.helperplugin.modstoml.*
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import org.gradle.api.JavaVersion
@@ -117,7 +118,7 @@ class HelperPlugin : Plugin<Project> {
         withType<JavaCompile>().configureEach {
             options.encoding = "UTF-8"
         }
-        named<Javadoc>("javadoc").configure {
+        named<Javadoc>("javadoc") {
             options.encoding = "UTF-8"
             (options as CoreJavadocOptions).addStringOption("Xdoclint:all,-missing", "-public")
             (options as StandardJavadocDocletOptions).tags = listOf(
@@ -148,43 +149,47 @@ class HelperPlugin : Plugin<Project> {
                 "FMLModType"             to helperExtension.projectType.map { it.modType }.get(),
                 "LICENSE"                to helperExtension.license.name.get()
             )
+            exclude("**/*.psd")
+            exclude("**/*.bbmodel")
         }
         processResources {
-            val files: FileCollection = project.fileTree("dir" to destinationDir.path, "include" to "**/*.json")
+            val jsonFiles: FileCollection = this.outputs.files.filter { it.extension == "json" }
             doLast {
-                files.forEach {
+                jsonFiles.forEach {
                     it.writeText(JsonOutput.toJson(JsonSlurper().parse(it)))
                 }
             }
         }
         if (helperExtension.projectType.get() == HelperExtension.Type.MOD) {
             val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
-                val modproperties = helperExtension.modproperties.orNull
-                val dependencies: List<Dependency>? = helperExtension.dependencies.orNull
-                val mcPublish = if (helperExtension.mcPublish.curseforge.isPresent || helperExtension.mcPublish.modrinth.isPresent) {
-                    McPublish(
+                modsToml.set(project.provider {
+                    val modproperties = helperExtension.modproperties.orNull
+                    val dependencies: List<Dependency> = helperExtension.dependencies.map { Dependency(it.modId.get(), it.versionRange.get(), it.type.get().name.lowercase(), it.ordering.orNull?.name, it.side.orNull?.name) }
+                    val mcPublish = McPublish(
                         helperExtension.mcPublish.modrinth.orNull,
                         helperExtension.mcPublish.curseforge.orNull
                     )
-                } else null
-                val projectId = helperExtension.projectId.get()
-
-                modsToml.set(ModsToml(
-                    helperExtension.loader.name.get(),
-                    helperExtension.loader.version.get(),
-                    helperExtension.license.name.get(),
-                    listOf(Mod(
-                        projectId,
-                        helperExtension.projectVersion.get(),
-                        helperExtension.projectName.get(),
-                        helperExtension.projectUrl.get(),
-                        helperExtension.projectAuthors.get(),
-                        helperExtension.projectDescription.get()
-                    )),
-                    mcPublish,
-                    if (dependencies != null) mapOf(projectId to dependencies) else null,
-                    if (!modproperties.isNullOrEmpty()) mapOf(projectId to modproperties) else null
-                ))
+                    val projectId = helperExtension.projectId.get()
+                    ModsToml(
+                        modLoader = helperExtension.loader.name.get(),
+                        loaderVersion = helperExtension.loader.version.get(),
+                        license = helperExtension.license.name.get(),
+                        issueTrackerURL = helperExtension.gitHub.issuesUrl.orNull,
+                        mods = listOf(Mod(
+                            modId = projectId,
+                            version = helperExtension.projectVersion.get(),
+                            displayName = helperExtension.projectName.get(),
+                            displayURL = helperExtension.projectUrl.orNull,
+                            logoFile = helperExtension.projectLogo.orNull,
+                            credits = helperExtension.projectCredits.orNull,
+                            authors = helperExtension.projectAuthors.orNull,
+                            description = helperExtension.projectDescription.orNull
+                        )),
+                        mcPublish = if (mcPublish.modrinth != null || mcPublish.curseforge != null) mcPublish else null,
+                        dependencies = if (dependencies.isNotEmpty()) mapOf(projectId to dependencies) else null,
+                        modproperties = if (!modproperties.isNullOrEmpty()) mapOf(projectId to modproperties) else null
+                    )
+                })
             }
             processResources {
                 from(generateModsToml) {

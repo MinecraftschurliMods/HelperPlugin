@@ -1,4 +1,4 @@
-package com.github.minecraftschurlimods.helperplugin
+package com.github.minecraftschurlimods.helperplugin.modstoml
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty

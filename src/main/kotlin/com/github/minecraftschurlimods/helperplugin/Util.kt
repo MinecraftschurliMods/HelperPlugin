@@ -1,5 +1,6 @@
 package com.github.minecraftschurlimods.helperplugin
 
+import net.neoforged.gradle.common.extensions.JarJarExtension
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import net.neoforged.gradle.util.TransformerUtils
 import org.gradle.api.Action
@@ -30,6 +31,7 @@ val Project.java: JavaPluginExtension get() = this.the<JavaPluginExtension>()
 val Project.sourceSets: SourceSetContainer get() = this.the<SourceSetContainer>()
 val Project.publishing: PublishingExtension get() = this.the<PublishingExtension>()
 val Project.runs: NamedDomainObjectContainer<Run> get() = this.extensions.getByName("runs") as NamedDomainObjectContainer<Run>
+val Project.jarJar: JarJarExtension get() = this.the<JarJarExtension>()
 
 val SourceSetContainer.api: NamedDomainObjectProvider<SourceSet> get() = named("api")
 val SourceSetContainer.main: NamedDomainObjectProvider<SourceSet> get() = named("main")
