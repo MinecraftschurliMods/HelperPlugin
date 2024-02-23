@@ -257,7 +257,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 systemProperties.put("forge.logging.markers", "REGISTRIES")
                 systemProperties.put("forge.logging.console.level", "debug")
                 modSources.add(project.sourceSets.main)
-                if (runningInCI.getOrElse(false)) {
+                if (!runningInCI.getOrElse(false)) {
                     jvmArgument("-XX:+AllowEnhancedClassRedefinition")
                 }
             }
