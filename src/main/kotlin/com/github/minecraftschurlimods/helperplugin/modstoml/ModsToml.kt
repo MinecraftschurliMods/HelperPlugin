@@ -46,4 +46,12 @@ data class Dependency(
     val type: String,
     val ordering: String?,
     val side: String?,
+    @SerialName("mc-publish")
+    val mcPublish: DependencyMcPublish?,
+) : java.io.Serializable
+
+@Serializable
+data class DependencyMcPublish(
+    val modrinth: String?,
+    val curseforge: String?,
 ) : java.io.Serializable

@@ -164,13 +164,26 @@ class HelperPlugin : Plugin<Project> {
             val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
                 modsToml.set(project.provider {
                     val modproperties = helperExtension.modproperties.orNull
-                    val dependencies: List<Dependency> = helperExtension.dependencies.map { Dependency(it.modId.get(), it.versionRange.get(), it.type.get().name.lowercase(), it.ordering.orNull?.name, it.side.orNull?.name) }
+                    val dependencies: List<Dependency> = helperExtension.dependencies.map {
+                        val mcPublish = DependencyMcPublish(
+                            it.modrinthId.orNull,
+                            it.curseforgeId.orNull
+                        )
+                        return@map Dependency(
+                            it.modId.get(),
+                            it.versionRange.get(),
+                            it.type.get().name.lowercase(),
+                            it.ordering.orNull?.name,
+                            it.side.orNull?.name,
+                            if (mcPublish.modrinth != null || mcPublish.curseforge != null) mcPublish else null
+                        ) 
+                    }
                     val mcPublish = McPublish(
                         helperExtension.mcPublish.modrinth.orNull,
                         helperExtension.mcPublish.curseforge.orNull
                     )
                     val projectId = helperExtension.projectId.get()
-                    ModsToml(
+                    return@provider ModsToml(
                         modLoader = helperExtension.loader.name.get(),
                         loaderVersion = helperExtension.loader.version.get(),
                         license = helperExtension.license.name.get(),

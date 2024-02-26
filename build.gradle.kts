@@ -11,7 +11,7 @@ repositories {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.5"
+version = "1.6"
 base.archivesName = "HelperPlugin"
 
 dependencies {
