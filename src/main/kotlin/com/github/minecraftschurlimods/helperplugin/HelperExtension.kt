@@ -5,6 +5,7 @@ package com.github.minecraftschurlimods.helperplugin
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependency
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependencyContainer
 import net.neoforged.gradle.common.tasks.JarJar
+import net.neoforged.gradle.dsl.common.runs.ide.extensions.IdeaRunExtension
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -237,10 +238,9 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 testSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.all {
-            if (name != "data") {
-                modSources.add(testSourceSet)
-            }
+        project.runs.matching { it.name != "data" }.all {
+            modSources.add(testSourceSet)
+            idea.primarySourceSet = testSourceSet
         }
     }
 
@@ -255,7 +255,10 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 dataGenSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.findByName("data")?.modSources?.add(dataGenSourceSet)
+        project.runs.matching { it.name == "data" }.all {
+            modSources.add(dataGenSourceSet)
+            idea.primarySourceSet = dataGenSourceSet
+        }
     }
 
     fun withCommonRuns() {
@@ -298,10 +301,8 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     fun withGameTestRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.all {
-            if (name != "data") {
-                systemProperties.put("neoforge.enabledGameTestNamespaces", projectId)
-            }
+        project.runs.matching { it.name != "data" }.all {
+            systemProperties.put("neoforge.enabledGameTestNamespaces", projectId)
         }
         project.runs.create("gameTestServer") {
             singleInstance()
