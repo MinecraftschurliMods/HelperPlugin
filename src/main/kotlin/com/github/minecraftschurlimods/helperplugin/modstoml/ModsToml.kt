@@ -13,6 +13,7 @@ data class ModsToml(
     val license: String,
     val issueTrackerURL: String?,
     val mods: List<Mod>,
+    val mixins: List<Mixin>?,
     @SerialName("mc-publish")
     val mcPublish: McPublish?,
     val dependencies: Map<String, List<Dependency>>?,
@@ -31,6 +32,11 @@ data class Mod(
     @TomlLiteral
     @TomlMultiline
     val description: String?,
+) : java.io.Serializable
+
+@Serializable
+data class Mixin(
+    val config: String
 ) : java.io.Serializable
 
 @Serializable

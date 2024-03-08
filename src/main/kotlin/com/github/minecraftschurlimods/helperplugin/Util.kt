@@ -1,5 +1,6 @@
 package com.github.minecraftschurlimods.helperplugin
 
+import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependency
 import net.neoforged.gradle.common.extensions.JarJarExtension
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import net.neoforged.gradle.util.TransformerUtils
@@ -50,3 +51,5 @@ val TaskContainer.javadocJar: TaskProvider<Jar> get() = named<Jar>("javadocJar")
 
 operator fun JavaPluginExtension.invoke(action: Action<JavaPluginExtension>) = action.execute(this)
 operator fun PublishingExtension.invoke(action: Action<PublishingExtension>) = action.execute(this)
+
+val NamedDomainObjectProvider<ModDependency>.version: Provider<String> get() = flatMap { it.version }

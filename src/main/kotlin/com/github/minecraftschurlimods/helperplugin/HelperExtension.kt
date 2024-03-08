@@ -12,6 +12,7 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.SourceSet
@@ -87,6 +88,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         .convention(project.layout.projectDirectory.dir("src/main/generated"))
     val dependencies: ModDependencyContainer = project.objects.newInstance<ModDependencyContainer>()
     val modproperties: MapProperty<String, String> = project.objects.mapProperty()
+    val mixinConfigs: SetProperty<String> = project.objects.setProperty()
 
     init {
         dependencies {
@@ -219,7 +221,9 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         }
         project.artifacts.add("archives", apiJar)
         publication.artifact(apiJar)
-        project.runs.configureEach { modSource(apiSourceSet) }
+        project.runs.all {
+            modSources.add(apiSourceSet)
+        }
     }
 
     private lateinit var testSourceSet: SourceSet
@@ -233,7 +237,11 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 testSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.findByName("gameTestServer")?.modSource(testSourceSet)
+        project.runs.all {
+            if (name != "data") {
+                modSources.add(testSourceSet)
+            }
+        }
     }
 
     private lateinit var dataGenSourceSet: SourceSet
@@ -247,19 +255,19 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 dataGenSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.findByName("data")?.modSource(dataGenSourceSet)
+        project.runs.findByName("data")?.modSources?.add(dataGenSourceSet)
     }
 
     fun withCommonRuns() {
         project.runs {
-            configureEach {
+            all {
                 workingDirectory.set(project.layout.projectDirectory.dir("run"))
                 systemProperties.put("forge.logging.markers", "REGISTRIES")
                 systemProperties.put("forge.logging.console.level", "debug")
-                modSources.add(project.sourceSets.main)
                 if (!runningInCI.getOrElse(false)) {
                     jvmArgument("-XX:+AllowEnhancedClassRedefinition")
                 }
+                modSources.add(project.sourceSets.main)
             }
             create("client")
             create("server") {
@@ -272,9 +280,6 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
         project.runs.create("data") {
             singleInstance()
-            if (::dataGenSourceSet.isInitialized) {
-                modSource(dataGenSourceSet)
-            }
             programArguments.add("--mod")
             programArguments.add(projectId)
             programArguments.add("--all")
@@ -293,12 +298,9 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     fun withGameTestRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.configureEach {
+        project.runs.all {
             if (name != "data") {
-                systemProperties.put("forge.enabledGameTestNamespaces", projectId)
-                if (::testSourceSet.isInitialized) {
-                    modSource(testSourceSet)
-                }
+                systemProperties.put("neoforge.enabledGameTestNamespaces", projectId)
             }
         }
         project.runs.create("gameTestServer") {

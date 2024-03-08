@@ -164,6 +164,7 @@ class HelperPlugin : Plugin<Project> {
             val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
                 modsToml.set(project.provider {
                     val modproperties = helperExtension.modproperties.orNull
+                    val mixins = helperExtension.mixinConfigs.orNull ?: setOf<String>()
                     val dependencies: List<Dependency> = helperExtension.dependencies.map {
                         val mcPublish = DependencyMcPublish(
                             it.modrinthId.orNull,
@@ -198,6 +199,7 @@ class HelperPlugin : Plugin<Project> {
                             authors = helperExtension.projectAuthors.orNull,
                             description = helperExtension.projectDescription.orNull
                         )),
+                        mixins = if (mixins.isNotEmpty()) mixins.map { Mixin(it) } else null,
                         mcPublish = if (mcPublish.modrinth != null || mcPublish.curseforge != null) mcPublish else null,
                         dependencies = if (dependencies.isNotEmpty()) mapOf(projectId to dependencies) else null,
                         modproperties = if (!modproperties.isNullOrEmpty()) mapOf(projectId to modproperties) else null
