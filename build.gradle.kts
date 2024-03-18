@@ -11,7 +11,7 @@ repositories {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.9"
+version = "1.10"
 base.archivesName = "HelperPlugin"
 
 dependencies {
@@ -19,7 +19,6 @@ dependencies {
     implementation("net.neoforged.gradle:userdev") {
         version {
             strictly("[7.0.80,7.1)")
-            prefer("7.0.80")
         }
     }
 }
