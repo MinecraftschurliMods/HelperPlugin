@@ -71,7 +71,7 @@ class HelperPlugin : Plugin<Project> {
             groupId = helperExtension.projectGroup.get()
             artifactId = helperExtension.projectId.get()
             version = helperExtension.fullVersion.get()
-            from(components.getByName("java"))
+            from(components.java)
             pom {
                 name.set(helperExtension.projectName)
                 url.set(helperExtension.projectUrl)
@@ -118,7 +118,8 @@ class HelperPlugin : Plugin<Project> {
         withType<JavaCompile>().configureEach {
             options.encoding = "UTF-8"
         }
-        named<Javadoc>("javadoc") {
+        javadoc {
+            options.locale = "en_US"
             options.encoding = "UTF-8"
             (options as CoreJavadocOptions).addStringOption("Xdoclint:all,-missing", "-public")
             (options as StandardJavadocDocletOptions).tags = listOf(

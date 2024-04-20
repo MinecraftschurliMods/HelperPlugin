@@ -4,12 +4,13 @@ package com.github.minecraftschurlimods.helperplugin
 
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependency
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependencyContainer
+import net.neoforged.gradle.common.extensions.DefaultJarJarFeature
 import net.neoforged.gradle.common.tasks.JarJar
-import net.neoforged.gradle.dsl.common.runs.ide.extensions.IdeaRunExtension
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -17,11 +18,11 @@ import org.gradle.api.provider.SetProperty
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.SourceSet
-import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.kotlin.dsl.*
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.net.URI
 import javax.inject.Inject
 
@@ -171,28 +172,27 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     private val neoforgeDependency = neoVersion.map { project.dependencyFactory.create("net.neoforged", "neoforge", it) }
+    private val testframeworkDependency = neoVersion.map { project.dependencyFactory.create("net.neoforged", "testframework", it) }
 
     fun neoforge() = neoforgeDependency
+    fun testframework() = testframeworkDependency
 
-    private lateinit var jarJar: TaskProvider<JarJar>
     fun withJarJar() {
-        if (::jarJar.isInitialized) return
-        val jar = project.tasks.named<Jar>("jar") {
+        project.tasks.named<Jar>("jar") {
             archiveClassifier.set("slim")
         }
-        jarJar = project.tasks.named<JarJar>("jarJar") {
+        project.tasks.named<JarJar>(DefaultJarJarFeature.JAR_JAR_TASK_NAME) {
             archiveClassifier.set("")
-            with(jar.get())
         }
-        project.artifacts.add("archives", jarJar)
-        publication.artifact(jarJar)
-        project.jarJar.component(publication)
     }
 
     private lateinit var apiSourceSet: SourceSet
     fun withApiSourceSet() {
         if (::apiSourceSet.isInitialized) return
         apiSourceSet = project.sourceSets.maybeCreate("api")
+        project.java.registerFeature("api") {
+            usingSourceSet(apiSourceSet)
+        }
         project.dependencies {
             apiSourceSet.compileOnlyConfigurationName(neoforge())
             "implementation"(apiSourceSet.output)
@@ -209,19 +209,9 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         project.tasks.sourcesJar {
             from(apiSourceSet.allSource)
         }
-        if (::jarJar.isInitialized) {
-            jarJar {
-                from(apiSourceSet.output)
-            }
-        }
-        val apiJar = project.tasks.register<Jar>("apiJar") {
-            dependsOn(apiSourceSet.classesTaskName)
-            archiveClassifier.set("api")
+        project.tasks.apiJar {
             from(apiSourceSet.allSource)
-            from(apiSourceSet.output)
         }
-        project.artifacts.add("archives", apiJar)
-        publication.artifact(apiJar)
         project.runs.all {
             modSources.add(apiSourceSet)
         }

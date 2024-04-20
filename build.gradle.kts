@@ -11,14 +11,14 @@ repositories {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.10"
+version = "1.11"
 base.archivesName = "HelperPlugin"
 
 dependencies {
     implementation("com.akuleshov7:ktoml-core:0.5.1")
     implementation("net.neoforged.gradle:userdev") {
         version {
-            strictly("[7.0.80,7.1)")
+            strictly("[7.0.106,7.1)")
         }
     }
 }

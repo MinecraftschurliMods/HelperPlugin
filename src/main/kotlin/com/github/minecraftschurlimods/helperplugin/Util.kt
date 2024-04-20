@@ -9,6 +9,7 @@ import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
+import org.gradle.api.component.SoftwareComponentContainer
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.plugins.BasePluginExtension
 import org.gradle.api.plugins.JavaPluginExtension
@@ -17,6 +18,7 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.javadoc.Javadoc
+import org.gradle.jvm.component.internal.JvmSoftwareComponentInternal
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.the
 import org.gradle.language.jvm.tasks.ProcessResources
@@ -34,6 +36,8 @@ val Project.sourceSets: SourceSetContainer get() = this.the<SourceSetContainer>(
 val Project.publishing: PublishingExtension get() = this.the<PublishingExtension>()
 val Project.runs: NamedDomainObjectContainer<Run> get() = this.extensions.getByName("runs") as NamedDomainObjectContainer<Run>
 val Project.jarJar: JarJar get() = this.the<JarJar>()
+
+val SoftwareComponentContainer.java: JvmSoftwareComponentInternal get() = this.getByName("java") as JvmSoftwareComponentInternal
 
 val SourceSetContainer.api: NamedDomainObjectProvider<SourceSet> get() = named("api")
 val SourceSetContainer.main: NamedDomainObjectProvider<SourceSet> get() = named("main")
