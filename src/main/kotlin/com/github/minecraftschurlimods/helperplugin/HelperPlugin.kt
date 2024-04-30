@@ -163,6 +163,10 @@ class HelperPlugin : Plugin<Project> {
         }
         if (helperExtension.projectType.get() == HelperExtension.Type.MOD) {
             val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
+                val mcVer = helperExtension.minecraftVersion.get().split('.')
+                if (mcVer.size == 2 && mcVer[1].toInt() > 20 || mcVer.size == 3 && (mcVer[1].toInt() > 20 || mcVer[1].toInt() == 20 && mcVer[2].toInt() > 5)) {
+                    modsTomlFile.set(project.layout.buildDirectory.file("generated/modsToml/neoforge.mods.toml"))
+                }
                 modsToml.set(project.provider {
                     val modproperties = helperExtension.modproperties.orNull
                     val mixins = helperExtension.mixinConfigs.orNull ?: setOf<String>()
