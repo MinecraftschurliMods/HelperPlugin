@@ -260,10 +260,10 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 if (!runningInCI.getOrElse(false)) {
                     jvmArgument("-XX:+AllowEnhancedClassRedefinition")
                 }
-                modSources.add(project.sourceSets.main)
+                modSources.add(project.sourceSets.main.get())
             }
-            create("client")
-            create("server") {
+            maybeCreate("client")
+            maybeCreate("server").apply {
                 singleInstance()
                 programArgument("--nogui")
             }
@@ -271,7 +271,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.create("data") {
+        project.runs.maybeCreate("data").apply {
             singleInstance()
             programArguments.add("--mod")
             programArguments.add(projectId)
@@ -294,7 +294,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         project.runs.matching { it.name != "data" }.all {
             systemProperties.put("neoforge.enabledGameTestNamespaces", projectId)
         }
-        project.runs.create("gameTestServer") {
+        project.runs.maybeCreate("gameTestServer").apply {
             singleInstance()
             jvmArgument("-ea")
             cfg.execute(this)
