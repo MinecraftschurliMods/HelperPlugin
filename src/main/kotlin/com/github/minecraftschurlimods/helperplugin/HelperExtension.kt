@@ -4,9 +4,7 @@ package com.github.minecraftschurlimods.helperplugin
 
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependency
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependencyContainer
-import net.neoforged.gradle.common.extensions.DefaultJarJarFeature
-import net.neoforged.gradle.common.tasks.JarJar
-import net.neoforged.gradle.dsl.common.runs.run.Run
+import net.neoforged.moddevgradle.dsl.RunModel
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
@@ -171,20 +169,9 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         LIBRARY("GAMELIBRARY")
     }
 
-    private val neoforgeDependency = neoVersion.map { project.dependencyFactory.create("net.neoforged", "neoforge", it) }
     private val testframeworkDependency = neoVersion.map { project.dependencyFactory.create("net.neoforged", "testframework", it) }
 
-    fun neoforge() = neoforgeDependency
     fun testframework() = testframeworkDependency
-
-    fun withJarJar() {
-        project.tasks.named<Jar>("jar") {
-            archiveClassifier.set("slim")
-        }
-        project.tasks.named<JarJar>(DefaultJarJarFeature.JAR_JAR_TASK_NAME) {
-            archiveClassifier.set("")
-        }
-    }
 
     private lateinit var apiSourceSet: SourceSet
     fun withApiSourceSet() {
@@ -194,7 +181,8 @@ open class HelperExtension @Inject constructor(private val project: Project) {
             usingSourceSet(apiSourceSet)
         }
         project.dependencies {
-            apiSourceSet.compileOnlyConfigurationName(neoforge())
+            project.neoForge.addModdingDependenciesTo(apiSourceSet)
+            // TODO is the line above a suitable replacement? apiSourceSet.compileOnlyConfigurationName(neoforge())
             "implementation"(apiSourceSet.output)
             if (::testSourceSet.isInitialized) {
                 testSourceSet.implementationConfigurationName(apiSourceSet.output)
@@ -212,8 +200,8 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         project.tasks.apiJar {
             from(apiSourceSet.allSource)
         }
-        project.runs.all {
-            modSources.add(apiSourceSet)
+        project.neoForge.mods.all {
+            sourceSet(apiSourceSet)
         }
     }
 
@@ -223,14 +211,17 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         testSourceSet = project.sourceSets.maybeCreate("test")
         project.dependencies {
             testSourceSet.implementationConfigurationName(project.sourceSets.main.output)
-            testSourceSet.implementationConfigurationName(neoforge())
+            project.neoForge.addModdingDependenciesTo(testSourceSet)
+            // TODO is the line above a suitable replacement? testSourceSet.implementationConfigurationName(neoforge())
             if (::apiSourceSet.isInitialized) {
                 testSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.matching { it.name != "data" }.all {
-            modSources.add(testSourceSet)
-            idea.primarySourceSet = testSourceSet
+        project.neoForge.mods.matching { it.name == "for_other_runs" }.all {
+            sourceSet(testSourceSet)
+        }
+        project.neoForge.runs.matching { it.name != "data" }.all {
+            sourceSet = testSourceSet
         }
     }
 
@@ -240,39 +231,54 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         dataGenSourceSet = project.sourceSets.maybeCreate("data")
         project.dependencies {
             dataGenSourceSet.implementationConfigurationName(project.sourceSets.main.output)
-            dataGenSourceSet.implementationConfigurationName(neoforge())
+            project.neoForge.addModdingDependenciesTo(dataGenSourceSet)
+            // TODO is the line above a suitable replacement? dataGenSourceSet.implementationConfigurationName(neoforge())
             if (::apiSourceSet.isInitialized) {
                 dataGenSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.matching { it.name == "data" }.all {
-            modSources.add(dataGenSourceSet)
-            idea.primarySourceSet = dataGenSourceSet
+        project.neoForge.mods.matching { it.name == "for_data_run" }.all {
+            sourceSet(dataGenSourceSet)
+        }
+        project.neoForge.runs.matching { it.name == "data" }.all {
+            sourceSet = dataGenSourceSet
         }
     }
 
     fun withCommonRuns() {
-        project.runs {
+        val dataModModel = project.neoForge.mods.create("for_data_run")
+        dataModModel.sourceSet(project.sourceSets.main.get())
+        val otherRunsModModel = project.neoForge.mods.create("for_other_runs")
+        otherRunsModModel.sourceSet(project.sourceSets.main.get())
+
+        project.neoForge.runs {
             all {
-                workingDirectory.set(project.layout.projectDirectory.dir("run"))
+                gameDirectory.set(project.layout.projectDirectory.dir("run"))
                 systemProperties.put("forge.logging.markers", "REGISTRIES")
                 systemProperties.put("forge.logging.console.level", "debug")
                 if (!runningInCI.getOrElse(false)) {
                     jvmArgument("-XX:+AllowEnhancedClassRedefinition")
                 }
-                modSources.add(project.sourceSets.main.get())
+                if (name == "data") {
+                    mods = listOf(dataModModel)
+                } else {
+                    mods = listOf(otherRunsModModel)
+                }
             }
-            maybeCreate("client")
-            maybeCreate("server").apply {
-                singleInstance()
+            create("client") {
+                client()
+            }
+            create("server") {
+                server()
+                // TODO singleInstance()
                 programArgument("--nogui")
             }
         }
     }
 
-    fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.maybeCreate("data").apply {
-            singleInstance()
+    fun withDataGenRuns(cfg: Action<RunModel> = Action<RunModel>{}) {
+        project.neoForge.runs.create("data").apply {
+            // TODO singleInstance()
             programArguments.add("--mod")
             programArguments.add(projectId)
             programArguments.add("--all")
@@ -290,12 +296,13 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         }
     }
 
-    fun withGameTestRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.matching { it.name != "data" }.all {
+    fun withGameTestRuns(cfg: Action<RunModel> = Action<RunModel>{}) {
+        project.neoForge.runs.matching { it.name != "data" }.all {
             systemProperties.put("neoforge.enabledGameTestNamespaces", projectId)
         }
-        project.runs.maybeCreate("gameTestServer").apply {
-            singleInstance()
+        project.neoForge.runs.create("gameTestServer").apply {
+            type = "gameTestServer"
+            // TODO singleInstance()
             jvmArgument("-ea")
             cfg.execute(this)
         }
