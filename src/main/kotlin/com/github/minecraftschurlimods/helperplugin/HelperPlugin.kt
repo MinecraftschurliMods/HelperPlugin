@@ -26,7 +26,7 @@ class HelperPlugin : Plugin<Project> {
         with(project) {
             apply<JavaPlugin>()
             apply<MavenPublishPlugin>()
-            apply(plugin = "net.neoforged.gradle.userdev")
+            apply(plugin = "net.neoforged.moddev")
 
             val helperExtension = setupExtensions()
             setupPublishing(helperExtension)
@@ -34,6 +34,7 @@ class HelperPlugin : Plugin<Project> {
             setupRepositories()
             configureTasks(helperExtension)
             setupArtifacts()
+            neoForge.version.set(helperExtension.neoVersion)
         }
     }
 

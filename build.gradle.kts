@@ -11,14 +11,14 @@ repositories {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.14"
+version = "2.0"
 base.archivesName = "HelperPlugin"
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 
 dependencies {
     implementation("com.akuleshov7:ktoml-core:0.5.1")
-    implementation("net.neoforged.gradle:userdev:[7.0.142,)")
+    implementation("net.neoforged:moddev-gradle:1.0.15")
 }
 
 gradlePlugin {
@@ -26,7 +26,7 @@ gradlePlugin {
         create("helper") {
             id = "com.github.minecraftschurlimods.helperplugin"
             displayName = "Helper Plugin"
-            description = "A gradle helper plugin built on-top of the neoforged/NeoGradle plugin"
+            description = "A gradle helper plugin built on-top of the neoforged/ModDevGradle plugin"
             implementationClass = "com.github.minecraftschurlimods.helperplugin.HelperPlugin"
         }
     }
