@@ -18,6 +18,7 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.javadoc.Javadoc
+import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.component.internal.JvmSoftwareComponentInternal
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.the
@@ -53,6 +54,7 @@ val TaskContainer.jar: TaskProvider<Jar> get() = named<Jar>("jar")
 val TaskContainer.apiJar: TaskProvider<Jar> get() = named<Jar>("apiJar")
 val TaskContainer.sourcesJar: TaskProvider<Jar> get() = named<Jar>("sourcesJar")
 val TaskContainer.javadocJar: TaskProvider<Jar> get() = named<Jar>("javadocJar")
+val TaskContainer.test: TaskProvider<Test> get() = named<Test>("test")
 
 operator fun JavaPluginExtension.invoke(action: Action<JavaPluginExtension>) = action.execute(this)
 operator fun PublishingExtension.invoke(action: Action<PublishingExtension>) = action.execute(this)

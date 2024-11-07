@@ -4,21 +4,21 @@ plugins {
     kotlin("plugin.serialization") version "1.9.22"
 }
 
+group = "com.github.minecraftschurlimods"
+version = "1.15"
+base.archivesName = "HelperPlugin"
+
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+
 repositories {
     mavenCentral()
     gradlePluginPortal()
     maven { url = uri("https://maven.neoforged.net/releases") }
 }
 
-group = "com.github.minecraftschurlimods"
-version = "1.14"
-base.archivesName = "HelperPlugin"
-
-java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
-
 dependencies {
     implementation("com.akuleshov7:ktoml-core:0.5.1")
-    implementation("net.neoforged.gradle:userdev:[7.0.142,)")
+    implementation("net.neoforged.gradle:userdev:[7.0.167,)")
 }
 
 gradlePlugin {

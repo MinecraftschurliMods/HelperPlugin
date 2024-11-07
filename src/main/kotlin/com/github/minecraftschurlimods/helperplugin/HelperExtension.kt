@@ -10,7 +10,6 @@ import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -22,7 +21,6 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.kotlin.dsl.*
-import org.gradle.language.base.plugins.LifecycleBasePlugin
 import java.net.URI
 import javax.inject.Inject
 
@@ -265,7 +263,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
             maybeCreate("client")
             maybeCreate("server").apply {
                 singleInstance()
-                programArgument("--nogui")
+                arguments.add("--nogui")
             }
         }
     }
@@ -273,13 +271,13 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
         project.runs.maybeCreate("data").apply {
             singleInstance()
-            programArguments.add("--mod")
-            programArguments.add(projectId)
-            programArguments.add("--all")
-            programArguments.add("--output")
-            programArguments.add(generatedResourcesDir.map { it.asFile.absolutePath })
-            programArguments.add("--existing")
-            programArguments.add(project.layout.projectDirectory.dir("src/main/resources/").asFile.absolutePath)
+            arguments.add("--mod")
+            arguments.add(projectId)
+            arguments.add("--all")
+            arguments.add("--output")
+            arguments.add(generatedResourcesDir.map { it.asFile.absolutePath })
+            arguments.add("--existing")
+            arguments.add(project.layout.projectDirectory.dir("src/main/resources/").asFile.absolutePath)
             cfg.execute(this)
         }
         project.sourceSets.main {
@@ -298,6 +296,17 @@ open class HelperExtension @Inject constructor(private val project: Project) {
             singleInstance()
             jvmArgument("-ea")
             cfg.execute(this)
+        }
+    }
+
+    fun withUnitTestRuns(cfg: Action<Run> = Action<Run>{}) {
+        project.runs.maybeCreate("junit").apply {
+            singleInstance()
+            jvmArgument("-ea")
+            cfg.execute(this)
+        }
+        project.tasks.test.configure {
+            useJUnitPlatform()
         }
     }
 }
