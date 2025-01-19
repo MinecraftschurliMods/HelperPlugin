@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.15"
+version = "1.16"
 base.archivesName = "HelperPlugin"
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))

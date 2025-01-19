@@ -108,8 +108,8 @@ class HelperPlugin : Plugin<Project> {
         mavenLocal()
         mavenCentral()
         maven {
-            name = "Minecraftschurli Maven"
-            url = uri("https://minecraftschurli.ddns.net/repository/maven-public")
+            name = "MinecraftschurliMods Maven"
+            url = uri("https://maven.minecraftschurli.at/maven-public")
         }
     }
 
