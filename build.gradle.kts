@@ -5,8 +5,8 @@ plugins {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.16"
-base.archivesName = "HelperPlugin"
+version = "1.17"
+base.archivesName = "helperplugin"
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 
@@ -30,6 +30,10 @@ gradlePlugin {
             implementationClass = "com.github.minecraftschurlimods.helperplugin.HelperPlugin"
         }
     }
+}
+
+publishing.publications.withType<MavenPublication> {
+    artifactId = base.archivesName.get()
 }
 
 publishing.repositories.maven {
