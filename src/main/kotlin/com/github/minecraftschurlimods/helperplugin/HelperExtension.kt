@@ -226,7 +226,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 testSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.matching { it.name != "data" }.all {
+        project.runs.matching { !it.isDataRun() }.all {
             modSources.add(testSourceSet)
             idea.primarySourceSet = testSourceSet
         }
@@ -243,7 +243,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
                 dataGenSourceSet.implementationConfigurationName(apiSourceSet.output)
             }
         }
-        project.runs.matching { it.name == "data" }.all {
+        project.runs.matching { it.isDataRun() }.all {
             modSources.add(dataGenSourceSet)
             idea.primarySourceSet = dataGenSourceSet
         }
@@ -269,7 +269,9 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.maybeCreate("data").apply {
+        project.runs.maybeCreate("clientData")
+        project.runs.maybeCreate("serverData")
+        project.runs.matching { it.isDataRun() }.all {
             singleInstance()
             arguments.add("--mod")
             arguments.add(projectId)
@@ -289,7 +291,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     fun withGameTestRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.matching { it.name != "data" }.all {
+        project.runs.matching { !it.isDataRun() }.all {
             systemProperties.put("neoforge.enabledGameTestNamespaces", projectId)
         }
         project.runs.maybeCreate("gameTestServer").apply {
@@ -309,4 +311,6 @@ open class HelperExtension @Inject constructor(private val project: Project) {
             useJUnitPlatform()
         }
     }
+
+    private fun Run.isDataRun(): Boolean = name == "clientData" || name == "serverData"
 }

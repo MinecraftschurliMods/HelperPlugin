@@ -5,20 +5,20 @@ plugins {
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.17"
+version = "1.18"
 base.archivesName = "helperplugin"
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 
 repositories {
+    maven { url = uri("https://maven.neoforged.net/releases") }
     mavenCentral()
     gradlePluginPortal()
-    maven { url = uri("https://maven.neoforged.net/releases") }
 }
 
 dependencies {
     implementation("com.akuleshov7:ktoml-core:0.5.1")
-    implementation("net.neoforged.gradle:userdev:[7.0.167,)")
+    implementation("net.neoforged.gradle:userdev:[7.0.192,)")
 }
 
 gradlePlugin {
