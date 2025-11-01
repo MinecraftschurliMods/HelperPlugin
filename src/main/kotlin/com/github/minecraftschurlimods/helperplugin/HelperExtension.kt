@@ -10,6 +10,7 @@ import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -20,7 +21,15 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
-import org.gradle.kotlin.dsl.*
+import org.gradle.kotlin.dsl.assign
+import org.gradle.kotlin.dsl.dependencies
+import org.gradle.kotlin.dsl.invoke
+import org.gradle.kotlin.dsl.listProperty
+import org.gradle.kotlin.dsl.mapProperty
+import org.gradle.kotlin.dsl.named
+import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.property
+import org.gradle.kotlin.dsl.setProperty
 import java.net.URI
 import javax.inject.Inject
 
@@ -66,6 +75,7 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         .convention(project.localGradleProperty("mod.authors"))
     val projectDescription: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty("mod.description"))
+    val featureFlags: ListProperty<String> = project.objects.listProperty<String>()
     val projectVendor: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.vendor"; Type.LIBRARY -> "lib.vendor" } }))
     val projectUrl: Property<String> = project.objects.property<String>()

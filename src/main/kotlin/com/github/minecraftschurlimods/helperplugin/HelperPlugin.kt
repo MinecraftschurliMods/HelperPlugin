@@ -1,6 +1,13 @@
 package com.github.minecraftschurlimods.helperplugin
 
-import com.github.minecraftschurlimods.helperplugin.modstoml.*
+import com.github.minecraftschurlimods.helperplugin.modstoml.Dependency
+import com.github.minecraftschurlimods.helperplugin.modstoml.DependencyMcPublish
+import com.github.minecraftschurlimods.helperplugin.modstoml.GenerateModsTomlTask
+import com.github.minecraftschurlimods.helperplugin.modstoml.McPublish
+import com.github.minecraftschurlimods.helperplugin.modstoml.Mixin
+import com.github.minecraftschurlimods.helperplugin.modstoml.Mod
+import com.github.minecraftschurlimods.helperplugin.modstoml.ModsToml
+import com.github.minecraftschurlimods.helperplugin.modstoml.WriteGitHubActionsOutputTask
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import org.gradle.api.JavaVersion
@@ -15,11 +22,19 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.external.javadoc.CoreJavadocOptions
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
-import org.gradle.kotlin.dsl.*
+import org.gradle.kotlin.dsl.apply
+import org.gradle.kotlin.dsl.attributes
+import org.gradle.kotlin.dsl.create
+import org.gradle.kotlin.dsl.invoke
+import org.gradle.kotlin.dsl.named
+import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.repositories
+import org.gradle.kotlin.dsl.withType
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 
+@Suppress("unused")
 class HelperPlugin : Plugin<Project> {    
     override fun apply(project: Project) {
         with(project) {
@@ -161,12 +176,17 @@ class HelperPlugin : Plugin<Project> {
             }
         }
         if (helperExtension.projectType.get() == HelperExtension.Type.MOD) {
+            val generateFeatureFlagsFile = register<GenerateFeatureFlagsFileTask>("generateFeatureFlagsFile") {
+                featureFlags.set(helperExtension.featureFlags.zip(helperExtension.projectId) { flags, modid -> flags.map { "$modid:$it" } })
+            }
             val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
+                dependsOn(generateFeatureFlagsFile)
+                val featureFlagsFile = generateFeatureFlagsFile.flatMap { it.featureFlagsFile.asFile }
                 val mcVer = helperExtension.minecraftVersion.get().split('.')
                 if (mcVer.size == 2 && mcVer[1].toInt() > 20 || mcVer.size == 3 && (mcVer[1].toInt() > 20 || mcVer[1].toInt() == 20 && mcVer[2].toInt() > 5)) {
                     modsTomlFile.set(project.layout.buildDirectory.file("generated/modsToml/neoforge.mods.toml"))
                 }
-                modsToml.set(project.provider {
+                modsToml.set(featureFlagsFile.map { featureFlagsFile ->
                     val modproperties = helperExtension.modproperties.orNull
                     val mixins = helperExtension.mixinConfigs.orNull ?: setOf<String>()
                     val dependencies: List<Dependency> = helperExtension.dependencies.map {
@@ -188,7 +208,7 @@ class HelperPlugin : Plugin<Project> {
                         helperExtension.mcPublish.curseforge.orNull
                     )
                     val projectId = helperExtension.projectId.get()
-                    return@provider ModsToml(
+                    return@map ModsToml(
                         modLoader = helperExtension.loader.name.get(),
                         loaderVersion = helperExtension.loader.version.get(),
                         license = helperExtension.license.name.get(),
@@ -201,7 +221,8 @@ class HelperPlugin : Plugin<Project> {
                             logoFile = helperExtension.projectLogo.orNull,
                             credits = helperExtension.projectCredits.orNull,
                             authors = helperExtension.projectAuthors.orNull,
-                            description = helperExtension.projectDescription.orNull
+                            description = helperExtension.projectDescription.orNull,
+                            featureFlags = if (featureFlagsFile.exists()) "META-INF/${featureFlagsFile.name}" else null
                         )),
                         mixins = if (mixins.isNotEmpty()) mixins.map { Mixin(it) } else null,
                         mcPublish = if (mcPublish.modrinth != null || mcPublish.curseforge != null) mcPublish else null,
@@ -212,6 +233,9 @@ class HelperPlugin : Plugin<Project> {
             }
             processResources {
                 from(generateModsToml) {
+                    into("META-INF/")
+                }
+                from(generateFeatureFlagsFile) {
                     into("META-INF/")
                 }
             }

@@ -32,6 +32,7 @@ data class Mod(
     @TomlLiteral
     @TomlMultiline
     val description: String?,
+    val featureFlags: String?,
 ) : java.io.Serializable
 
 @Serializable
