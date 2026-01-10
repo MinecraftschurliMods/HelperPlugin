@@ -181,11 +181,24 @@ class HelperPlugin : Plugin<Project> {
             }
             val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
                 dependsOn(generateFeatureFlagsFile)
-                val featureFlagsFile = generateFeatureFlagsFile.flatMap { it.featureFlagsFile.asFile }
-                val mcVer = helperExtension.minecraftVersion.get().split('.')
-                if (mcVer.size == 2 && mcVer[1].toInt() > 20 || mcVer.size == 3 && (mcVer[1].toInt() > 20 || mcVer[1].toInt() == 20 && mcVer[2].toInt() > 5)) {
-                    modsTomlFile.set(project.layout.buildDirectory.file("generated/modsToml/neoforge.mods.toml"))
+
+                // if mcVer <= 1.20.5 use mods.toml otherwise use neoforge.mods.toml
+                // the versioning changed after 1.21.11 to continue with 26.1
+                val path = helperExtension.minecraftVersion.map { ver ->
+                    val mcVer = ver.split('.').flatMap { it.split('-') }
+                    try {
+                        return@map when {
+                            mcVer.size == 2 && mcVer[0].toInt() == 1 && mcVer[1].toInt() <= 20 -> "generated/modsToml/mods.toml"
+                            mcVer.size == 3 && mcVer[0].toInt() == 1 && (mcVer[1].toInt() < 20 || (mcVer[1].toInt() == 20 && mcVer[2].toInt() <= 5)) -> "generated/modsToml/mods.toml"
+                            else -> "generated/modsToml/neoforge.mods.toml"
+                        }
+                    } catch (e: NumberFormatException) {
+                        return@map "generated/modsToml/neoforge.mods.toml"
+                    }
                 }
+                modsTomlFile.set(project.layout.buildDirectory.file(path))
+
+                val featureFlagsFile = generateFeatureFlagsFile.flatMap { it.featureFlagsFile.asFile }
                 modsToml.set(featureFlagsFile.map { featureFlagsFile ->
                     val modproperties = helperExtension.modproperties.orNull
                     val mixins = helperExtension.mixinConfigs.orNull ?: setOf<String>()
