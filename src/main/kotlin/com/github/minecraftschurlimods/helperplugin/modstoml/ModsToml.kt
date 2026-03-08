@@ -18,6 +18,7 @@ data class ModsToml(
     val mcPublish: McPublish?,
     val dependencies: Map<String, List<Dependency>>?,
     val modproperties: Map<String, Map<String, String>>?,
+    val accessTransformers: List<AccessTransformer>?,
 ) : java.io.Serializable
 
 @Serializable
@@ -33,6 +34,12 @@ data class Mod(
     @TomlMultiline
     val description: String?,
     val featureFlags: String?,
+    val enumExtensions: String?,
+) : java.io.Serializable
+
+@Serializable
+data class AccessTransformer(
+    val file: String
 ) : java.io.Serializable
 
 @Serializable

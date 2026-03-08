@@ -1,5 +1,6 @@
 package com.github.minecraftschurlimods.helperplugin
 
+import com.github.minecraftschurlimods.helperplugin.modstoml.AccessTransformer
 import com.github.minecraftschurlimods.helperplugin.modstoml.Dependency
 import com.github.minecraftschurlimods.helperplugin.modstoml.DependencyMcPublish
 import com.github.minecraftschurlimods.helperplugin.modstoml.GenerateModsTomlTask
@@ -182,26 +183,15 @@ class HelperPlugin : Plugin<Project> {
             val generateModsToml = register<GenerateModsTomlTask>("generateModsToml") {
                 dependsOn(generateFeatureFlagsFile)
 
-                // if mcVer <= 1.20.5 use mods.toml otherwise use neoforge.mods.toml
-                // the versioning changed after 1.21.11 to continue with 26.1
-                val path = helperExtension.minecraftVersion.map { ver ->
-                    val mcVer = ver.split('.').flatMap { it.split('-') }
-                    try {
-                        return@map when {
-                            mcVer.size == 2 && mcVer[0].toInt() == 1 && mcVer[1].toInt() <= 20 -> "generated/modsToml/mods.toml"
-                            mcVer.size == 3 && mcVer[0].toInt() == 1 && (mcVer[1].toInt() < 20 || (mcVer[1].toInt() == 20 && mcVer[2].toInt() <= 5)) -> "generated/modsToml/mods.toml"
-                            else -> "generated/modsToml/neoforge.mods.toml"
-                        }
-                    } catch (e: NumberFormatException) {
-                        return@map "generated/modsToml/neoforge.mods.toml"
-                    }
-                }
+                val path = helperExtension.useLegacyModsToml.map { f -> if(f) "generated/modsToml/mods.toml" else "generated/modsToml/neoforge.mods.toml" }
                 modsTomlFile.set(project.layout.buildDirectory.file(path))
 
                 val featureFlagsFile = generateFeatureFlagsFile.flatMap { it.featureFlagsFile.asFile }
-                modsToml.set(featureFlagsFile.map { featureFlagsFile ->
+                modsToml.set(provider {
                     val modproperties = helperExtension.modproperties.orNull
+
                     val mixins = helperExtension.mixinConfigs.orNull ?: setOf<String>()
+
                     val dependencies: List<Dependency> = helperExtension.dependencies.map {
                         val mcPublish = DependencyMcPublish(
                             it.modrinthId.orNull,
@@ -216,12 +206,14 @@ class HelperPlugin : Plugin<Project> {
                             if (mcPublish.modrinth != null || mcPublish.curseforge != null) mcPublish else null
                         ) 
                     }
+
                     val mcPublish = McPublish(
                         helperExtension.mcPublish.modrinth.orNull,
                         helperExtension.mcPublish.curseforge.orNull
                     )
+
                     val projectId = helperExtension.projectId.get()
-                    return@map ModsToml(
+                    return@provider ModsToml(
                         modLoader = helperExtension.loader.name.get(),
                         loaderVersion = helperExtension.loader.version.get(),
                         license = helperExtension.license.name.get(),
@@ -235,12 +227,14 @@ class HelperPlugin : Plugin<Project> {
                             credits = helperExtension.projectCredits.orNull,
                             authors = helperExtension.projectAuthors.orNull,
                             description = helperExtension.projectDescription.orNull,
-                            featureFlags = if (featureFlagsFile.exists()) "META-INF/${featureFlagsFile.name}" else null
+                            featureFlags = featureFlagsFile.orNull?.let { if (it.exists()) "META-INF/${it.name}" else null },
+                            enumExtensions = helperExtension.enumExtensions.orNull
                         )),
                         mixins = if (mixins.isNotEmpty()) mixins.map { Mixin(it) } else null,
                         mcPublish = if (mcPublish.modrinth != null || mcPublish.curseforge != null) mcPublish else null,
                         dependencies = if (dependencies.isNotEmpty()) mapOf(projectId to dependencies) else null,
-                        modproperties = if (!modproperties.isNullOrEmpty()) mapOf(projectId to modproperties) else null
+                        modproperties = if (!modproperties.isNullOrEmpty()) mapOf(projectId to modproperties) else null,
+                        accessTransformers = helperExtension.accessTransformers.orNull?.map { AccessTransformer(it) }
                     )
                 })
             }

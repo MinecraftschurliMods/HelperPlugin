@@ -9,7 +9,9 @@ import net.neoforged.gradle.common.tasks.JarJar
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -76,6 +78,8 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     val projectDescription: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty("mod.description"))
     val featureFlags: ListProperty<String> = project.objects.listProperty<String>()
+    val enumExtensions: Property<String> = project.objects.property<String>()
+    val accessTransformers: SetProperty<String> = project.objects.setProperty<String>()
     val projectVendor: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.vendor"; Type.LIBRARY -> "lib.vendor" } }))
     val projectUrl: Property<String> = project.objects.property<String>()
@@ -99,6 +103,31 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     val dependencies: ModDependencyContainer = project.objects.newInstance<ModDependencyContainer>()
     val modproperties: MapProperty<String, String> = project.objects.mapProperty()
     val mixinConfigs: SetProperty<String> = project.objects.setProperty()
+
+    // if mcVer < 1.21.4 use a single "data" run, if mcVer >= 1.21.4 use separate "clientData" and "serverData" runs,
+    // as the data gen system changed in 1.21.4 and the old "data" run is no longer supported
+    // the versioning changed after 1.21.11 to continue with 26.1
+    internal val useSplitDataRuns = minecraftVersion.map { ver ->
+        val mcVer = ver.split('.').flatMap { it.split('-') }
+        val major = mcVer.getOrNull(0)?.toIntOrNull() ?: return@map false
+        if (major > 1) return@map true
+        val minor = mcVer.getOrNull(1)?.toIntOrNull() ?: return@map false
+        if (minor > 21) return@map true
+        val patch = mcVer.getOrNull(2)?.toIntOrNull() ?: return@map false
+        return@map patch >= 4
+    }
+
+    // if mcVer <= 1.20.5 use mods.toml otherwise use neoforge.mods.toml
+    // the versioning changed after 1.21.11 to continue with 26.1
+    internal val useLegacyModsToml = minecraftVersion.map { ver ->
+        val mcVer = ver.split('.').flatMap { it.split('-') }
+        val major = mcVer.getOrNull(0)?.toIntOrNull() ?: return@map false
+        if (major > 1) return@map false
+        val minor = mcVer.getOrNull(1)?.toIntOrNull() ?: return@map false
+        if (minor > 20) return@map false
+        val patch = mcVer.getOrNull(2)?.toIntOrNull() ?: return@map true
+        return@map patch <= 5
+    }
 
     init {
         dependencies {
@@ -279,8 +308,12 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     }
 
     fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.maybeCreate("clientData")
-        project.runs.maybeCreate("serverData")
+        if (useSplitDataRuns.get()) {
+            project.runs.maybeCreate("clientData")
+            project.runs.maybeCreate("serverData")
+        } else {
+            project.runs.maybeCreate("data")
+        }
         project.runs.matching { it.isDataRun() }.all {
             singleInstance()
             arguments.add("--mod")
@@ -322,5 +355,5 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         }
     }
 
-    private fun Run.isDataRun(): Boolean = name == "clientData" || name == "serverData"
+    private fun Run.isDataRun(): Boolean = if (useSplitDataRuns.get()) name == "clientData" || name == "serverData" else name == "data"
 }
