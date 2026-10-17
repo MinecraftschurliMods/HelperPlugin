@@ -76,7 +76,7 @@ internal class RunConfigurator(private val project: Project, private val ext: He
         }
         project.tasks.javadoc {
             classpath = apiSet.compileClasspath
-            setSource(apiSet.allJava)
+            source = apiSet.allJava
         }
         project.runs.all {
             modSources.add(apiSet)
@@ -131,15 +131,6 @@ internal class RunConfigurator(private val project: Project, private val ext: He
 
     fun withCommonRuns() {
         project.runs {
-            all {
-                workingDirectory.set(project.layout.projectDirectory.dir("run"))
-                systemProperties.put("forge.logging.markers", "REGISTRIES")
-                systemProperties.put("forge.logging.console.level", "debug")
-                if (!ext.runningInCI.getOrElse(false)) {
-                    jvmArgument("-XX:+AllowEnhancedClassRedefinition")
-                }
-                modSources.add(project.sourceSets.main.get())
-            }
             maybeCreate("client")
             maybeCreate("server").apply {
                 singleInstance()

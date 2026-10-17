@@ -2,7 +2,9 @@ package com.github.minecraftschurlimods.helperplugin
 
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependency
 import net.neoforged.gradle.dsl.common.extensions.JarJar
+import net.neoforged.gradle.dsl.common.extensions.Minecraft
 import net.neoforged.gradle.dsl.common.runs.ide.extensions.IdeaRunExtension
+import net.neoforged.gradle.dsl.common.runs.idea.extensions.IdeaRunsExtension
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import net.neoforged.gradle.util.TransformerUtils
 import org.gradle.api.Action
@@ -43,6 +45,9 @@ val Project.sourceSets: SourceSetContainer get() = this.the<SourceSetContainer>(
 val Project.publishing: PublishingExtension get() = this.the<PublishingExtension>()
 val Project.runs: NamedDomainObjectContainer<Run> get() = this.extensions.getByName("runs") as NamedDomainObjectContainer<Run>
 val Project.jarJar: JarJar get() = this.the<JarJar>()
+val Project.minecraft: Minecraft get() = this.the<Minecraft>()
+
+val Minecraft.idea: IdeaRunsExtension get() = this.the<IdeaRunsExtension>()
 
 val SoftwareComponentContainer.java: SoftwareComponent get() = this.getByName("java")
 
@@ -69,4 +74,4 @@ operator fun PublishingExtension.invoke(action: Action<PublishingExtension>) = a
 val NamedDomainObjectProvider<ModDependency>.version: Provider<String> get() = flatMap { it.version }
 val NamedDomainObjectProvider<ModDependency>.artifact: Provider<String> get() = flatMap { it.artifact }
 val NamedDomainObjectProvider<ModDependency>.apiArtifact: Provider<String> get() = flatMap { it.apiArtifact }
-val Run.idea:IdeaRunExtension get() = the<IdeaRunExtension>()
+val Run.idea: IdeaRunExtension get() = the<IdeaRunExtension>()

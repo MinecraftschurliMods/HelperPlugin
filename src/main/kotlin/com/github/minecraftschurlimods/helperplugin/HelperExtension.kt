@@ -55,7 +55,7 @@ internal fun usesLegacyModsToml(ver: String): Boolean {
     return patch <= 5
 }
 
-open class HelperExtension @Inject constructor(private val project: Project) {
+open class HelperExtension @Inject constructor(project: Project) {
     lateinit var publication: MavenPublication
 
     @get:Nested

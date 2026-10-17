@@ -51,6 +51,15 @@ class ModDependencyWiringTest {
     }
 
     @Test
+    fun `artifact can be built from a version only function with an api classifier`() {
+        wire(project.helper.dependencies.required("patchouli") {
+            artifact({ version -> "vazkii.patchouli:patchouli-neoforge:$version" }, "api")
+        })
+        assertEquals(listOf("vazkii.patchouli:patchouli-neoforge:94:api"), declared("compileOnly"))
+        assertEquals(listOf("vazkii.patchouli:patchouli-neoforge:94"), declared("runtimeOnly"))
+    }
+
+    @Test
     fun `required dependency with api artifact compiles against api and runs with full jar`() {
         wire(project.helper.dependencies.required("patchouli") {
             artifact("vazkii.patchouli:patchouli-neoforge:{version}", apiClassifier = "api")
@@ -63,7 +72,7 @@ class ModDependencyWiringTest {
     @Test
     fun `optional dependency compiles against api and is only on the run runtime`() {
         wire(project.helper.dependencies.jei { devRuntime.set(true) })
-        assertEquals(listOf("mezz.jei:jei-$MC_VERSION-neoforge-api:29.5.0"), declared("compileOnly"))
+        assertEquals(listOf("mezz.jei:jei-$MC_VERSION-common-api:29.5.0"), declared("compileOnly"))
         assertEquals(listOf("mezz.jei:jei-$MC_VERSION-neoforge:29.5.0"), declared("localRunRuntime"))
         assertEquals(emptyList<String>(), declared("runtimeOnly"))
         assertEquals(emptyList<String>(), declared("implementation"))
@@ -72,7 +81,7 @@ class ModDependencyWiringTest {
     @Test
     fun `optional dependency without dev runtime is compile only`() {
         wire(project.helper.dependencies.jei { devRuntime.set(false) })
-        assertEquals(listOf("mezz.jei:jei-$MC_VERSION-neoforge-api:29.5.0"), declared("compileOnly"))
+        assertEquals(listOf("mezz.jei:jei-$MC_VERSION-common-api:29.5.0"), declared("compileOnly"))
         assertEquals(emptyList<String>(), declared("localRunRuntime"))
     }
 
@@ -106,7 +115,7 @@ class ModDependencyWiringTest {
             type.set(ModDependency.Type.INCOMPATIBLE)
             artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
         }
-        wire(incompatible)
+        wire(incompatible.get())
         for (configuration in listOf("implementation", "compileOnly", "runtimeOnly", "localRunRuntime")) {
             assertEquals(emptyList<String>(), declared(configuration), configuration)
         }
@@ -139,19 +148,25 @@ class ModDependencyWiringTest {
             artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
             repository("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/")
         }
-        wire(dependency)
+        wire(dependency.get())
         assertEquals(1, project.repositories.filter { it.name == "geckolib" }.size)
     }
 
     @Test
     fun `presets declare their artifacts`() {
-        val jei = project.helper.dependencies.jei().get()
+        val jei = project.helper.dependencies.jei()
         assertEquals("mezz.jei:jei-$MC_VERSION-neoforge:29.5.0", jei.artifact.get())
-        assertEquals("mezz.jei:jei-$MC_VERSION-neoforge-api:29.5.0", jei.apiArtifact.get())
+        assertEquals("mezz.jei:jei-$MC_VERSION-common-api:29.5.0", jei.apiArtifact.get())
         assertTrue(jei.repository.isPresent)
     }
 
-    private fun wire(dependency: org.gradle.api.NamedDomainObjectProvider<ModDependency>) = project.wireModDependency(dependency.get())
+    @Test
+    fun `mod dependencies are available as mods in the dependencies block`() {
+        val mods = (project.dependencies as org.gradle.api.plugins.ExtensionAware).extensions.getByName("mods")
+        assertTrue(mods === project.helper.dependencies)
+    }
+
+    private fun wire(dependency: ModDependency) = project.wireModDependency(dependency)
 
     // declared external dependencies of a configuration (excluding inherited ones and neoforge itself), as group:name:version[:classifier]
     private fun declared(configuration: String): List<String> {

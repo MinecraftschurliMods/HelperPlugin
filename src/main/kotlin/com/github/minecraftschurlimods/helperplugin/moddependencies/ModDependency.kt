@@ -40,18 +40,30 @@ class ModDependency(val name: String, project: Project, private val minecraftVer
      * Sets the artifact from a notation where `{mc}` and `{version}` are replaced by the minecraft and dependency version.
      * If [apiClassifier] is given, the api artifact is the same artifact with that classifier.
      */
-    fun artifact(notation: String, apiClassifier: String? = null) {
-        artifact.set(resolve(notation))
+    fun artifact(notation: String, apiClassifier: String? = null) = artifact(resolve(notation), apiClassifier)
+
+    fun artifact(notation: (mc: String, version: String) -> String, apiClassifier: String? = null) = artifact(minecraftVersion.zip(version, notation), apiClassifier)
+
+    fun artifact(notation: (version: String) -> String, apiClassifier: String? = null) = artifact(version.map(notation), apiClassifier)
+
+    fun artifact(notation: (mc: String, version: String) -> String) = artifact(minecraftVersion.zip(version, notation))
+
+    fun artifact(notation: (version: String) -> String) = artifact(version.map(notation))
+
+    fun artifact(notation: Provider<String>, apiClassifier: String? = null) {
+        artifact.set(notation)
         if (apiClassifier != null) {
-            apiArtifact.set(artifact.map { "$it:$apiClassifier" })
+            apiArtifact(artifact.map { "$it:$apiClassifier" })
         }
     }
 
-    fun artifact(notation: (mc: String, version: String) -> String) = artifact.set(minecraftVersion.zip(version, notation))
+    fun apiArtifact(notation: String) = apiArtifact(resolve(notation))
 
-    fun apiArtifact(notation: String) = apiArtifact.set(resolve(notation))
+    fun apiArtifact(notation: (mc: String, version: String) -> String) = apiArtifact(minecraftVersion.zip(version, notation))
 
-    fun apiArtifact(notation: (mc: String, version: String) -> String) = apiArtifact.set(minecraftVersion.zip(version, notation))
+    fun apiArtifact(notation: (version: String) -> String) = apiArtifact(version.map(notation))
+
+    fun apiArtifact(notation: Provider<String>) = apiArtifact.set(notation)
 
     /**
      * Sets the maven repository the artifacts are resolved from, restricted to [group] (defaults to the artifact's group).

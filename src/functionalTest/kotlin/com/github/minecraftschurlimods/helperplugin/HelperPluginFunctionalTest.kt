@@ -95,7 +95,7 @@ class HelperPluginFunctionalTest {
         )
         val result = fixture.run("help")
 
-        val jeiApi = "mezz.jei:jei-26.1.2-neoforge-api:29.37.0.99"
+        val jeiApi = "mezz.jei:jei-26.1.2-common-api:29.37.0.99"
         val jei = "mezz.jei:jei-26.1.2-neoforge:29.37.0.99"
         val geckolib = "com.geckolib:geckolib-neoforge-26.1.2:5.5.2"
         val patchouliApi = "vazkii.patchouli:patchouli-neoforge:26.1-94:api"
@@ -144,13 +144,12 @@ class HelperPluginFunctionalTest {
         val repository = fixture.interfaceInjectionRepository("com.example.injected", "injected-lib", "1.0")
         fixture.buildScript(
             """
-            val injected = helper.dependencies.required("injected") {
-                artifact("com.example.injected:injected-lib:{version}")
-                repository("$repository")
-            }
-
             dependencies {
-                "interfaceInjection"(injected.flatMap { it.artifact })
+                val injected = mods.required("injected") {
+                    artifact("com.example.injected:injected-lib:{version}")
+                    repository("$repository")
+                }
+                "interfaceInjection"(injected.artifact)
             }
             """
         )

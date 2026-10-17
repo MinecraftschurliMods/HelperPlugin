@@ -118,18 +118,15 @@ NeoForge is added to main's `implementation` automatically.
 
 Mod dependencies are declared once and produce both the `[[dependencies.<modid>]]` entries in
 mods.toml and, if they declare an artifact, the Gradle dependencies and repository.
-`neoforge` and `minecraft` are always declared.
+`neoforge` and `minecraft` are always declared. They live in the `mods` extension of the
+`dependencies` block (`helper.dependencies` is the same container):
 
 ```kotlin
-helper.dependencies {
-    jei()
-    curios()
-    required("geckolib") {
+dependencies {
+    mods.jei()
+    mods.curios()
+    mods.required("patchouli") {
         ordering = ModDependency.Ordering.BEFORE
-        artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
-        repository("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/")
-    }
-    required("patchouli") {
         artifact("vazkii.patchouli:patchouli-neoforge:{version}", apiClassifier = "api")
         repository("https://maven.blamejared.com/")
     }
@@ -155,16 +152,19 @@ How artifacts are added (to main unless `usedBy(...)` names other source sets):
   classpath but on no compile classpath and not in the published POM. It is skipped in CI; set
   `devRuntime` to override that per dependency.
 - **`api` as a target** only ever gets the compile artifact.
-- **Presets** `jei()`, `jade()` and `curios()` come with coordinates and repositories, and
-  everything can be overridden in their configuration block. `theoneprobe()`, `configured()` and
+- **Presets** `jei()`, `jade()`, `curios()` and `geckolib()` come with coordinates and
+  repositories, and everything can be overridden in their configuration block. `theoneprobe()`, `configured()` and
   `catalogue()` only declare the mods.toml entry.
 
-For anything unusual, `artifact` and `apiArtifact` are available as providers:
+Declaring returns the `ModDependency`, so its `artifact`, `apiArtifact` and `version` providers
+can be used for anything unusual:
 
 ```kotlin
-val curios = helper.dependencies.curios()
 dependencies {
+    val curios = mods.curios()
+    val geckolib = mods.geckolib()
     "dataRuntimeOnly"(curios.artifact)
+    "interfaceInjection"(geckolib.artifact)
 }
 ```
 

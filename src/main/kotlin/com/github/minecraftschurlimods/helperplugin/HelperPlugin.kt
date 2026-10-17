@@ -1,10 +1,10 @@
 package com.github.minecraftschurlimods.helperplugin
 
+import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependencyContainer
 import com.github.minecraftschurlimods.helperplugin.moddependencies.wireModDependencies
 import com.github.minecraftschurlimods.helperplugin.modstoml.GenerateModsTomlTask
 import com.github.minecraftschurlimods.helperplugin.modstoml.WriteGitHubActionsOutputTask
 import com.github.minecraftschurlimods.helperplugin.modstoml.toModsToml
-import net.neoforged.gradle.dsl.common.extensions.Minecraft
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -18,7 +18,6 @@ import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.kotlin.dsl.apply
 import org.gradle.kotlin.dsl.attributes
 import org.gradle.kotlin.dsl.create
-import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.repositories
@@ -36,11 +35,22 @@ class HelperPlugin : Plugin<Project> {
             val helperExtension = setupExtensions()
             setupConfigurations(helperExtension)
             setupAccessTransformers(helperExtension)
-            wireModDependencies(helperExtension.dependencies)
+            setupModDependencies(helperExtension)
             setupPublishing(helperExtension)
             setupJava(helperExtension)
             setupRepositories()
             configureTasks(helperExtension)
+            runs.all {
+                workingDirectory.set(project.layout.projectDirectory.dir("run"))
+                systemProperties.put("forge.logging.markers", "REGISTRIES")
+                systemProperties.put("forge.logging.console.level", "debug")
+                if (!helperExtension.runningInCI.getOrElse(false)) {
+                    jvmArgument("-XX:+AllowEnhancedClassRedefinition")
+                }
+                modSources.add(project.sourceSets.main.get())
+                systemProperties.put("terminal.ansi", "true")
+            }
+            minecraft.idea.useArgsFile.set(false)
         }
     }
 
@@ -63,9 +73,15 @@ class HelperPlugin : Plugin<Project> {
 
     // feed the jar-relative paths used for the mods toml to neogradle as well
     private fun Project.setupAccessTransformers(helperExtension: HelperExtension) {
-        extensions.getByType<Minecraft>().accessTransformers.files.from(helperExtension.accessTransformers.zip(sourceSets.main) { paths, main ->
+        minecraft.accessTransformers.files.from(helperExtension.accessTransformers.zip(sourceSets.main) { paths, main ->
             paths.mapNotNull { path -> main.resources.srcDirs.map { it.resolve(path) }.firstOrNull { it.isFile } }
         })
+    }
+
+    private fun Project.setupModDependencies(helperExtension: HelperExtension) {
+        // makes the mod dependencies available as `mods` in the dependencies block
+        dependencies.extensions.add(ModDependencyContainer::class.java, "mods", helperExtension.dependencies)
+        wireModDependencies(helperExtension.dependencies)
     }
 
     private fun Project.setupJava(helperExtension: HelperExtension) = java {
@@ -140,6 +156,9 @@ class HelperPlugin : Plugin<Project> {
         this@configureTasks.createSetupGitHubActionsTask(helperExtension)
         withType<JavaCompile>().configureEach {
             options.encoding = "UTF-8"
+        }
+        withType<JavaCompile>().matching { it.name == "neoFormRecompile" }.configureEach {
+            options.compilerArgs.add("-Xlint:-removal")
         }
         javadoc {
             options.locale = "en_US"
