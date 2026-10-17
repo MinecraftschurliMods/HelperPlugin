@@ -139,6 +139,25 @@ class HelperPluginFunctionalTest {
         assertTrue(result.report("javadoc") == "[Api.java]", result.report("javadoc"))
     }
 
+    @Test
+    fun `mod dependency repositories are available to configurations NeoGradle resolves while configuring`() {
+        val repository = fixture.interfaceInjectionRepository("com.example.injected", "injected-lib", "1.0")
+        fixture.buildScript(
+            """
+            val injected = helper.dependencies.required("injected") {
+                artifact("com.example.injected:injected-lib:{version}")
+                repository("$repository")
+            }
+
+            dependencies {
+                "interfaceInjection"(injected.flatMap { it.artifact })
+            }
+            """
+        )
+        fixture.file("gradle.properties").appendText("dependency.injected.version=1.0\n")
+        fixture.run("help")
+    }
+
     private fun assertContains(report: String, vararg expected: String) {
         for (entry in expected) assertTrue(entry in report.removeSurrounding("[", "]").split(", "), "missing <$entry> in $report")
     }

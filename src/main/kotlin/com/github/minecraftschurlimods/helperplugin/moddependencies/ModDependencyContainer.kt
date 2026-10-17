@@ -2,17 +2,22 @@ package com.github.minecraftschurlimods.helperplugin.moddependencies
 
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
+import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 
-open class ModDependencyContainer(project: Project, minecraftVersion: Provider<String>, runningInCI: Provider<Boolean>) : NamedDomainObjectContainer<ModDependency> by project.objects.domainObjectContainer(ModDependency::class.java, { name -> ModDependency(name, project, minecraftVersion, runningInCI) }) {
-    fun optional(name: String, cfg: Action<ModDependency> = Action {}) = register(name) {
-        type.set(ModDependency.Type.OPTIONAL)
-        cfg.execute(this)
-    }
-    fun required(name: String, cfg: Action<ModDependency> = Action {}) = register(name) {
-        type.set(ModDependency.Type.REQUIRED)
-        cfg.execute(this)
+open class ModDependencyContainer(private val project: Project, minecraftVersion: Provider<String>, runningInCI: Provider<Boolean>) : NamedDomainObjectContainer<ModDependency> by project.objects.domainObjectContainer(ModDependency::class.java, { name -> ModDependency(name, project, minecraftVersion, runningInCI) }) {
+    // created eagerly so the repository exists before NeoGradle resolves anything, see addModDependencyRepository
+    fun optional(name: String, cfg: Action<ModDependency> = Action {}) = declare(name, ModDependency.Type.OPTIONAL, cfg)
+    fun required(name: String, cfg: Action<ModDependency> = Action {}) = declare(name, ModDependency.Type.REQUIRED, cfg)
+
+    private fun declare(name: String, type: ModDependency.Type, cfg: Action<ModDependency>): NamedDomainObjectProvider<ModDependency> {
+        create(name) {
+            this.type.set(type)
+            cfg.execute(this)
+            project.addModDependencyRepository(this)
+        }
+        return named(name)
     }
 
     fun jei(cfg: Action<ModDependency> = Action {}) = optional("jei") {

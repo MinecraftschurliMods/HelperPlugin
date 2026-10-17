@@ -113,13 +113,34 @@ class ModDependencyWiringTest {
     }
 
     @Test
-    fun `repository is added for the artifact`() {
+    fun `repository is added as soon as the dependency is declared`() {
+        // NeoGradle resolves some configurations (e.g. interfaceInjection) before afterEvaluate, so no wiring here
+        project.helper.dependencies.required("geckolib") {
+            repository("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/")
+            artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
+        }
+        val repository = project.repositories.findByName("geckolib") as MavenArtifactRepository?
+        assertEquals(URI("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"), repository?.url)
+    }
+
+    @Test
+    fun `declared and wired dependency adds its repository once`() {
         wire(project.helper.dependencies.required("geckolib") {
             artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
             repository("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/")
         })
-        val repository = project.repositories.findByName("geckolib") as MavenArtifactRepository?
-        assertEquals(URI("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"), repository?.url)
+        assertEquals(1, project.repositories.filter { it.name == "geckolib" }.size)
+    }
+
+    @Test
+    fun `repository of a lazily registered dependency is added when wiring`() {
+        val dependency = project.helper.dependencies.register("geckolib") {
+            type.set(ModDependency.Type.REQUIRED)
+            artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
+            repository("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/")
+        }
+        wire(dependency)
+        assertEquals(1, project.repositories.filter { it.name == "geckolib" }.size)
     }
 
     @Test

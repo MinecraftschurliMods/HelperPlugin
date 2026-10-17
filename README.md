@@ -140,6 +140,10 @@ The version comes from `dependency.<modid>.version`, and the mods.toml range fro
 `dependency.<modid>.version.range`. In artifact notations `{mc}` and `{version}` are replaced by the
 Minecraft and dependency version. `artifact { mc, version -> "..." }` works as well.
 
+`repository(url)` adds a repository restricted to the artifact's group (pass `group = "..."` to
+choose another). It is added as soon as the dependency is declared, so it is also available to
+configurations NeoGradle resolves while configuring the project, such as `interfaceInjection`.
+
 How artifacts are added (to main unless `usedBy(...)` names other source sets):
 
 |            | Without api artifact        | With api artifact                               |

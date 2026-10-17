@@ -27,8 +27,9 @@ class ModDependency(val name: String, project: Project, private val minecraftVer
     // maven coordinates of the full mod jar and of its api jar, without an artifact nothing is added to the classpath
     val artifact: Property<String> = project.objects.property()
     val apiArtifact: Property<String> = project.objects.property()
-    // maven repository the artifacts are resolved from, restricted to the artifact's group
+    // maven repository the artifacts are resolved from, restricted to repositoryGroup (defaults to the artifact's group)
     val repository: Property<String> = project.objects.property()
+    val repositoryGroup: Property<String> = project.objects.property()
     // whether optional dependencies are put on the runtime of the runs, off in CI by default
     val devRuntime: Property<Boolean> = project.objects.property<Boolean>()
         .convention(runningInCI.map { !it }.orElse(true))
@@ -52,7 +53,13 @@ class ModDependency(val name: String, project: Project, private val minecraftVer
 
     fun apiArtifact(notation: (mc: String, version: String) -> String) = apiArtifact.set(minecraftVersion.zip(version, notation))
 
-    fun repository(url: String) = repository.set(url)
+    /**
+     * Sets the maven repository the artifacts are resolved from, restricted to [group] (defaults to the artifact's group).
+     */
+    fun repository(url: String, group: String? = null) {
+        repository.set(url)
+        repositoryGroup.set(group)
+    }
 
     fun usedBy(vararg sourceSets: String) = usedBy.addAll(*sourceSets)
 

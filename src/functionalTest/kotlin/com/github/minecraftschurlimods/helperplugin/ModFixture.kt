@@ -46,6 +46,45 @@ class ModFixture(val dir: File) {
         "plugins {\n    id(\"com.github.minecraftschurlimods.helperplugin\")\n}\n\n" + body.trimIndent() + "\n"
     )
 
+    /**
+     * Publishes a library with only an interface injection variant (as NeoGradle's interfaceInjection configuration
+     * requests) to a maven repository in the project dir, returns the repository's url.
+     */
+    fun interfaceInjectionRepository(group: String, module: String, version: String): String {
+        val repo = file("local-repo")
+        val dir = File(repo, "${group.replace('.', '/')}/$module/$version").also { it.mkdirs() }
+        val base = "$module-$version"
+        val json = File(dir, "$base-interface-injections.json").apply { writeText("{}") }
+        File(dir, "$base.pom").writeText(
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+              <!-- do_not_remove: published-with-gradle-metadata -->
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>$group</groupId>
+              <artifactId>$module</artifactId>
+              <version>$version</version>
+            </project>
+            """.trimIndent()
+        )
+        File(dir, "$base.module").writeText(
+            """
+            {
+              "formatVersion": "1.1",
+              "component": { "group": "$group", "module": "$module", "version": "$version" },
+              "variants": [
+                {
+                  "name": "interfaceInjectionElements",
+                  "attributes": { "org.gradle.category": "interfaceinjection" },
+                  "files": [ { "name": "${json.name}", "url": "${json.name}", "size": ${json.length()} } ]
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+        return repo.toURI().toString()
+    }
+
     fun run(vararg arguments: String): BuildResult = GradleRunner.create()
         .withProjectDir(dir)
         .withPluginClasspath()

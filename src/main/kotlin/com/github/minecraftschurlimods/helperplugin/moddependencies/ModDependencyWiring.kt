@@ -25,14 +25,7 @@ internal fun Project.wireModDependency(dependency: ModDependency) {
     val artifact = dependency.artifact
     val compileArtifact = dependency.apiArtifact.orElse(artifact)
 
-    dependency.repository.orNull?.let { url ->
-        val group = artifact.get().substringBefore(':')
-        repositories.maven {
-            name = dependency.name
-            setUrl(url)
-            content { includeGroup(group) }
-        }
-    }
+    addModDependencyRepository(dependency)
 
     val targets = dependency.usedBy.getOrElse(emptySet()).ifEmpty { setOf(SourceSet.MAIN_SOURCE_SET_NAME) }
     for (target in targets) {
@@ -54,6 +47,26 @@ internal fun Project.wireModDependency(dependency: ModDependency) {
             if (dependency.devRuntime.get()) {
                 this.dependencies.addProvider(localRunRuntimeConfigurationName(sourceSet), artifact)
             }
+        }
+    }
+}
+
+/**
+ * Adds the repository of a mod dependency. Called right after the dependency is declared, as NeoGradle resolves some
+ * configurations (e.g. interfaceInjection) while the project is still being configured, and again when wiring for
+ * dependencies that were registered lazily or got their repository later.
+ * The content filter has to be known when the repository is created, gradle applies it immediately.
+ */
+internal fun Project.addModDependencyRepository(dependency: ModDependency) {
+    val url = dependency.repository.orNull ?: return
+    if (repositories.findByName(dependency.name) != null) return
+    // the artifact can usually be resolved already (versions come from gradle.properties), without it the repository is unfiltered
+    val group = dependency.repositoryGroup.orNull ?: dependency.artifact.orNull?.substringBefore(':')
+    repositories.maven {
+        name = dependency.name
+        setUrl(url)
+        if (group != null) {
+            content { includeGroup(group) }
         }
     }
 }
