@@ -3,6 +3,7 @@
 package com.github.minecraftschurlimods.helperplugin
 
 import net.neoforged.gradle.common.tasks.JarJar
+import net.neoforged.gradle.dsl.common.extensions.subsystems.Subsystems
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
@@ -12,6 +13,7 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.kotlin.dsl.assign
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.get
+import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.named
 
@@ -92,6 +94,8 @@ internal class RunConfigurator(private val project: Project, private val ext: He
             testSet.implementationConfigurationName("org.junit.jupiter:junit-jupiter")
             testSet.runtimeOnlyConfigurationName("org.junit.platform:junit-platform-launcher")
         }
+        // let NeoGradle configure the stock test task instead of creating its own (off by default)
+        project.extensions.getByType<Subsystems>().conventions.runs.shouldDefaultTestTaskBeReused.set(true)
         project.runs.maybeCreate("junit").apply {
             isJUnit.set(true)
             runType("junit")
@@ -101,7 +105,7 @@ internal class RunConfigurator(private val project: Project, private val ext: He
             unitTestSources.add(testSet)
             cfg.execute(this)
         }
-        // NeoGradle only wires the stock test task if the junit run's mod sources are exactly {main};
+        // NeoGradle only reuses the stock test task if the junit run's mod sources are exactly {main};
         // otherwise (e.g. with the api source set) it creates testJunit, so forward test to it
         project.tasks.test {
             val junitTask = project.tasks.findByName("testJunit") ?: return@test

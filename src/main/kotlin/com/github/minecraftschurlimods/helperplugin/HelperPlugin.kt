@@ -203,7 +203,7 @@ class HelperPlugin : Plugin<Project> {
     private fun Project.createSetupGitHubActionsTask(helperExtension: HelperExtension) {
         val githubOutputFile = providers.environmentVariable("GITHUB_OUTPUT")
         if (!githubOutputFile.isPresent) {
-            logger.quiet("GITHUB_OUTPUT environment variable is not set, skipping setupGithubActions task registration")
+            logger.info("GITHUB_OUTPUT environment variable is not set, skipping setupGithubActions task registration")
             return
         }
         tasks.register<WriteGitHubActionsOutputTask>("setupGithubActions") {

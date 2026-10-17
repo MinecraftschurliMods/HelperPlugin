@@ -21,7 +21,38 @@ dependencies {
     implementation("net.neoforged.gradle:userdev:[7.1.21,)")
 }
 
+testing {
+    suites {
+        withType<JvmTestSuite> {
+            targets.all {
+                testTask.configure {
+                    testLogging {
+                        events("failed")
+                        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    }
+                }
+            }
+        }
+        named<JvmTestSuite>("test") {
+            useJUnitJupiter("5.13.4")
+        }
+        // runs real gradle builds with NeoGradle (slow, needs network), so it is not part of check
+        register<JvmTestSuite>("functionalTest") {
+            useJUnitJupiter("5.13.4")
+            dependencies {
+                implementation(gradleTestKit())
+            }
+            targets.all {
+                testTask.configure {
+                    shouldRunAfter(tasks.test)
+                }
+            }
+        }
+    }
+}
+
 gradlePlugin {
+    testSourceSets(sourceSets["functionalTest"])
     plugins {
         create("helper") {
             id = "com.github.minecraftschurlimods.helperplugin"

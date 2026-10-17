@@ -15,10 +15,10 @@ import org.gradle.kotlin.dsl.getByType
  * - optional: compileOnly(api artifact or artifact) + the source set's local run runtime(artifact) if [ModDependency.devRuntime]
  */
 internal fun Project.wireModDependencies(dependencies: ModDependencyContainer) = afterEvaluate {
-    dependencies.forEach { wire(it) }
+    dependencies.forEach { wireModDependency(it) }
 }
 
-private fun Project.wire(dependency: ModDependency) {
+internal fun Project.wireModDependency(dependency: ModDependency) {
     if (!dependency.artifact.isPresent) return
     val type = dependency.type.orNull ?: return
     if (type != ModDependency.Type.REQUIRED && type != ModDependency.Type.OPTIONAL) return

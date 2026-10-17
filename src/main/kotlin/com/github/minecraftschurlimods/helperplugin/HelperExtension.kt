@@ -32,6 +32,29 @@ private fun parseMcVersion(ver: String): List<Int?> {
     return listOf(parts.getOrNull(0)?.toIntOrNull(), parts.getOrNull(1)?.toIntOrNull(), parts.getOrNull(2)?.toIntOrNull())
 }
 
+// if mcVer < 1.21.4 use a single "data" run, if mcVer >= 1.21.4 use separate "clientData" and "serverData" runs,
+// as the data gen system changed in 1.21.4 and the old "data" run is no longer supported
+// the versioning changed after 1.21.11 to continue with 26.1
+internal fun usesSplitDataRuns(ver: String): Boolean {
+    val (major, minor, patch) = parseMcVersion(ver)
+    if (major == null) return false
+    if (major > 1) return true
+    if (minor == null) return false
+    if (minor > 21) return true
+    if (patch == null) return false
+    return patch >= 4
+}
+
+// if mcVer <= 1.20.5 use mods.toml otherwise use neoforge.mods.toml
+// the versioning changed after 1.21.11 to continue with 26.1
+internal fun usesLegacyModsToml(ver: String): Boolean {
+    val (major, minor, patch) = parseMcVersion(ver)
+    if (major == null || major > 1) return false
+    if (minor == null || minor > 20) return false
+    if (patch == null) return true
+    return patch <= 5
+}
+
 open class HelperExtension @Inject constructor(private val project: Project) {
     lateinit var publication: MavenPublication
 
@@ -118,28 +141,8 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     val dependencies: ModDependencyContainer = ModDependencyContainer(project, minecraftVersion, runningInCI)
     val modproperties: MapProperty<String, String> = project.objects.mapProperty()
 
-    // if mcVer < 1.21.4 use a single "data" run, if mcVer >= 1.21.4 use separate "clientData" and "serverData" runs,
-    // as the data gen system changed in 1.21.4 and the old "data" run is no longer supported
-    // the versioning changed after 1.21.11 to continue with 26.1
-    internal val useSplitDataRuns = minecraftVersion.map { ver ->
-        val (major, minor, patch) = parseMcVersion(ver)
-        if (major == null) return@map false
-        if (major > 1) return@map true
-        if (minor == null) return@map false
-        if (minor > 21) return@map true
-        if (patch == null) return@map false
-        patch >= 4
-    }
-
-    // if mcVer <= 1.20.5 use mods.toml otherwise use neoforge.mods.toml
-    // the versioning changed after 1.21.11 to continue with 26.1
-    internal val useLegacyModsToml = minecraftVersion.map { ver ->
-        val (major, minor, patch) = parseMcVersion(ver)
-        if (major == null || major > 1) return@map false
-        if (minor == null || minor > 20) return@map false
-        if (patch == null) return@map true
-        patch <= 5
-    }
+    internal val useSplitDataRuns = minecraftVersion.map(::usesSplitDataRuns)
+    internal val useLegacyModsToml = minecraftVersion.map(::usesLegacyModsToml)
 
     init {
         dependencies {
