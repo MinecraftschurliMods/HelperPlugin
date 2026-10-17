@@ -1,14 +1,14 @@
 plugins {
     `kotlin-dsl`
     `maven-publish`
-    kotlin("plugin.serialization") version "1.9.22"
+    kotlin("plugin.serialization") version embeddedKotlinVersion
 }
 
 group = "com.github.minecraftschurlimods"
-version = "1.21"
+version = "2.0"
 base.archivesName = "helperplugin"
 
-java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 
 repositories {
     maven { url = uri("https://maven.neoforged.net/releases") }
@@ -17,8 +17,8 @@ repositories {
 }
 
 dependencies {
-    implementation("com.akuleshov7:ktoml-core:0.5.1")
-    implementation("net.neoforged.gradle:userdev:[7.1.20,)")
+    implementation("com.akuleshov7:ktoml-core:0.7.1")
+    implementation("net.neoforged.gradle:userdev:[7.1.21,)")
 }
 
 gradlePlugin {

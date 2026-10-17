@@ -9,7 +9,9 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
+import org.gradle.work.DisableCachingByDefault
 
+@DisableCachingByDefault(because = "Writes a small file, not worth caching")
 open class GenerateModsTomlTask : DefaultTask() {
     @Input
     val modsToml: Property<ModsToml> = project.objects.property()
@@ -19,6 +21,10 @@ open class GenerateModsTomlTask : DefaultTask() {
 
     @TaskAction
     fun writeModsToml() {
-        modsTomlFile.asFile.get().writeText(Toml.encodeToString(modsToml.get()) + "\n")
+        val toml = modsToml.get()
+        toml.mods.forEach { mod ->
+            require(mod.description?.contains("'''") != true) { "Description of mod ${mod.modId} must not contain ''' as it is written as a TOML multiline literal string" }
+        }
+        modsTomlFile.asFile.get().writeText(Toml.encodeToString(toml) + "\n")
     }
 }

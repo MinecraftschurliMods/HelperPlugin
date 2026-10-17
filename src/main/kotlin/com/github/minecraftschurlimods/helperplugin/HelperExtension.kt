@@ -4,14 +4,11 @@ package com.github.minecraftschurlimods.helperplugin
 
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependency
 import com.github.minecraftschurlimods.helperplugin.moddependencies.ModDependencyContainer
-import net.neoforged.gradle.common.extensions.DefaultJarJarFeature
-import net.neoforged.gradle.common.tasks.JarJar
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -19,21 +16,21 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Nested
-import org.gradle.api.tasks.SourceSet
-import org.gradle.api.tasks.bundling.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
-import org.gradle.kotlin.dsl.assign
-import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.mapProperty
-import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
 import java.net.URI
 import javax.inject.Inject
+
+// parses "1.21.4", "1.21", "26.1", "1.21.4-pre1" into (major, minor, patch); missing parts are null
+private fun parseMcVersion(ver: String): List<Int?> {
+    val parts = ver.split('.').flatMap { it.split('-') }
+    return listOf(parts.getOrNull(0)?.toIntOrNull(), parts.getOrNull(1)?.toIntOrNull(), parts.getOrNull(2)?.toIntOrNull())
+}
 
 open class HelperExtension @Inject constructor(private val project: Project) {
     lateinit var publication: MavenPublication
@@ -80,12 +77,30 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     val featureFlags: ListProperty<String> = project.objects.listProperty<String>()
     val enumExtensions: Property<String> = project.objects.property<String>()
     val accessTransformers: SetProperty<String> = project.objects.setProperty<String>()
+        .convention(project.provider {
+            val default = "META-INF/accesstransformer.cfg"
+            if (project.file("src/main/resources/$default").isFile) setOf(default) else emptySet()
+        })
     val projectVendor: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.vendor"; Type.LIBRARY -> "lib.vendor" } }))
     val projectUrl: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty(projectType.map { when(it) { Type.MOD -> "mod.url"; Type.LIBRARY -> "lib.url" } }).orElse(gitHub.url))
     val projectLogo: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty("mod.logo"))
+    val projectNamespace: Property<String> = project.objects.property<String>()
+    val projectUpdateJsonUrl: Property<String> = project.objects.property<String>()
+        .convention(project.localGradleProperty("mod.update_url"))
+    val projectModUrl: Property<String> = project.objects.property<String>()
+        .convention(project.localGradleProperty("mod.mod_url"))
+    val projectLogoBlur: Property<Boolean> = project.objects.property<Boolean>()
+    val showAsResourcePack: Property<Boolean> = project.objects.property<Boolean>()
+    val showAsDataPack: Property<Boolean> = project.objects.property<Boolean>()
+    val services: SetProperty<String> = project.objects.setProperty<String>()
+    val fileProperties: MapProperty<String, String> = project.objects.mapProperty()
+    val features: MapProperty<String, String> = project.objects.mapProperty()
+    val junitVersion: Property<String> = project.objects.property<String>()
+        .convention(project.localGradleProperty("junit_version").orElse("5.13.4"))
+    val mixins: NamedDomainObjectContainer<MixinConfig> = project.objects.domainObjectContainer(MixinConfig::class.java) { name -> MixinConfig(name, project) }
     val minecraftVersion: Property<String> = project.objects.property<String>()
         .convention(project.localGradleProperty("mc_version"))
     val minecraftVersionRange: Property<String> = project.objects.property<String>()
@@ -100,33 +115,30 @@ open class HelperExtension @Inject constructor(private val project: Project) {
         .convention(projectGroup.zip(projectId) { group, id -> "$group:$id" }.zip(fullVersion) { selector, version -> "$selector:$version" })
     val generatedResourcesDir: DirectoryProperty = project.objects.directoryProperty()
         .convention(project.layout.projectDirectory.dir("src/main/generated"))
-    val dependencies: ModDependencyContainer = project.objects.newInstance<ModDependencyContainer>()
+    val dependencies: ModDependencyContainer = ModDependencyContainer(project, minecraftVersion, runningInCI)
     val modproperties: MapProperty<String, String> = project.objects.mapProperty()
-    val mixinConfigs: SetProperty<String> = project.objects.setProperty()
 
     // if mcVer < 1.21.4 use a single "data" run, if mcVer >= 1.21.4 use separate "clientData" and "serverData" runs,
     // as the data gen system changed in 1.21.4 and the old "data" run is no longer supported
     // the versioning changed after 1.21.11 to continue with 26.1
     internal val useSplitDataRuns = minecraftVersion.map { ver ->
-        val mcVer = ver.split('.').flatMap { it.split('-') }
-        val major = mcVer.getOrNull(0)?.toIntOrNull() ?: return@map false
+        val (major, minor, patch) = parseMcVersion(ver)
+        if (major == null) return@map false
         if (major > 1) return@map true
-        val minor = mcVer.getOrNull(1)?.toIntOrNull() ?: return@map false
+        if (minor == null) return@map false
         if (minor > 21) return@map true
-        val patch = mcVer.getOrNull(2)?.toIntOrNull() ?: return@map false
-        return@map patch >= 4
+        if (patch == null) return@map false
+        patch >= 4
     }
 
     // if mcVer <= 1.20.5 use mods.toml otherwise use neoforge.mods.toml
     // the versioning changed after 1.21.11 to continue with 26.1
     internal val useLegacyModsToml = minecraftVersion.map { ver ->
-        val mcVer = ver.split('.').flatMap { it.split('-') }
-        val major = mcVer.getOrNull(0)?.toIntOrNull() ?: return@map false
-        if (major > 1) return@map false
-        val minor = mcVer.getOrNull(1)?.toIntOrNull() ?: return@map false
-        if (minor > 20) return@map false
-        val patch = mcVer.getOrNull(2)?.toIntOrNull() ?: return@map true
-        return@map patch <= 5
+        val (major, minor, patch) = parseMcVersion(ver)
+        if (major == null || major > 1) return@map false
+        if (minor == null || minor > 20) return@map false
+        if (patch == null) return@map true
+        patch <= 5
     }
 
     init {
@@ -203,6 +215,12 @@ open class HelperExtension @Inject constructor(private val project: Project) {
             .convention(project.localGradleProperty("mc-publish.modrinth"))
     }
 
+    class MixinConfig(val name: String, project: Project) {
+        val config: Property<String> = project.objects.property<String>().convention(name)
+        val requiredMods: SetProperty<String> = project.objects.setProperty<String>()
+        val behaviorVersion: Property<String> = project.objects.property<String>()
+    }
+
     enum class Type(val modType: String) {
         MOD("MOD"),
         LIBRARY("GAMELIBRARY")
@@ -214,146 +232,16 @@ open class HelperExtension @Inject constructor(private val project: Project) {
     fun neoforge() = neoforgeDependency
     fun testframework() = testframeworkDependency
 
-    fun withJarJar() {
-        project.tasks.named<Jar>("jar") {
-            archiveClassifier.set("slim")
-        }
-        project.tasks.named<JarJar>(DefaultJarJarFeature.JAR_JAR_TASK_NAME) {
-            archiveClassifier.set("")
-        }
-    }
+    private val runConfigurator by lazy { RunConfigurator(project, this) }
 
-    private lateinit var apiSourceSet: SourceSet
-    fun withApiSourceSet() {
-        if (::apiSourceSet.isInitialized) return
-        apiSourceSet = project.sourceSets.maybeCreate("api")
-        project.java.registerFeature("api") {
-            usingSourceSet(apiSourceSet)
-        }
-        project.dependencies {
-            apiSourceSet.compileOnlyConfigurationName(neoforge())
-            "implementation"(apiSourceSet.output)
-            if (::testSourceSet.isInitialized) {
-                testSourceSet.implementationConfigurationName(apiSourceSet.output)
-            }
-            if (::dataGenSourceSet.isInitialized) {
-                dataGenSourceSet.implementationConfigurationName(apiSourceSet.output)
-            }
-        }
-        project.tasks.jar {
-            from(apiSourceSet.output)
-        }
-        project.tasks.sourcesJar {
-            from(apiSourceSet.allSource)
-        }
-        project.tasks.apiJar {
-            from(apiSourceSet.allSource)
-        }
-        project.runs.all {
-            modSources.add(apiSourceSet)
-        }
-    }
+    fun mixin(config: String, cfg: Action<MixinConfig> = Action {}) = mixins.register(config, cfg)
 
-    private lateinit var testSourceSet: SourceSet
-    fun withTestSourceSet() {
-        if (::testSourceSet.isInitialized) return
-        testSourceSet = project.sourceSets.maybeCreate("test")
-        project.dependencies {
-            testSourceSet.implementationConfigurationName(project.sourceSets.main.output)
-            testSourceSet.implementationConfigurationName(neoforge())
-            if (::apiSourceSet.isInitialized) {
-                testSourceSet.implementationConfigurationName(apiSourceSet.output)
-            }
-        }
-        project.runs.matching { !it.isDataRun() }.all {
-            modSources.add(testSourceSet)
-            idea.primarySourceSet = testSourceSet
-        }
-    }
-
-    private lateinit var dataGenSourceSet: SourceSet
-    fun withDataGenSourceSet() {
-        if (::dataGenSourceSet.isInitialized) return
-        dataGenSourceSet = project.sourceSets.maybeCreate("data")
-        project.dependencies {
-            dataGenSourceSet.implementationConfigurationName(project.sourceSets.main.output)
-            dataGenSourceSet.implementationConfigurationName(neoforge())
-            if (::apiSourceSet.isInitialized) {
-                dataGenSourceSet.implementationConfigurationName(apiSourceSet.output)
-            }
-        }
-        project.runs.matching { it.isDataRun() }.all {
-            modSources.add(dataGenSourceSet)
-            idea.primarySourceSet = dataGenSourceSet
-        }
-    }
-
-    fun withCommonRuns() {
-        project.runs {
-            all {
-                workingDirectory.set(project.layout.projectDirectory.dir("run"))
-                systemProperties.put("forge.logging.markers", "REGISTRIES")
-                systemProperties.put("forge.logging.console.level", "debug")
-                if (!runningInCI.getOrElse(false)) {
-                    jvmArgument("-XX:+AllowEnhancedClassRedefinition")
-                }
-                modSources.add(project.sourceSets.main.get())
-            }
-            maybeCreate("client")
-            maybeCreate("server").apply {
-                singleInstance()
-                arguments.add("--nogui")
-            }
-        }
-    }
-
-    fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
-        if (useSplitDataRuns.get()) {
-            project.runs.maybeCreate("clientData")
-            project.runs.maybeCreate("serverData")
-        } else {
-            project.runs.maybeCreate("data")
-        }
-        project.runs.matching { it.isDataRun() }.all {
-            singleInstance()
-            arguments.add("--mod")
-            arguments.add(projectId)
-            arguments.add("--all")
-            arguments.add("--output")
-            arguments.add(generatedResourcesDir.map { it.asFile.absolutePath })
-            arguments.add("--existing")
-            arguments.add(project.layout.projectDirectory.dir("src/main/resources/").asFile.absolutePath)
-            cfg.execute(this)
-        }
-        project.sourceSets.main {
-            resources {
-                srcDir(generatedResourcesDir)
-                exclude(".cache")
-            }
-        }
-    }
-
-    fun withGameTestRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.matching { !it.isDataRun() }.all {
-            systemProperties.put("neoforge.enabledGameTestNamespaces", projectId)
-        }
-        project.runs.maybeCreate("gameTestServer").apply {
-            singleInstance()
-            jvmArgument("-ea")
-            cfg.execute(this)
-        }
-    }
-
-    fun withUnitTestRuns(cfg: Action<Run> = Action<Run>{}) {
-        project.runs.maybeCreate("junit").apply {
-            singleInstance()
-            jvmArgument("-ea")
-            cfg.execute(this)
-        }
-        project.tasks.test.configure {
-            useJUnitPlatform()
-        }
-    }
-
-    private fun Run.isDataRun(): Boolean = if (useSplitDataRuns.get()) name == "clientData" || name == "serverData" else name == "data"
+    fun withJarJar() = runConfigurator.withJarJar()
+    fun withApiSourceSet() = runConfigurator.withApiSourceSet()
+    fun withTestSourceSet(cfg: Action<Run> = Action {}) = runConfigurator.withTestSourceSet(cfg)
+    fun withGameTestSourceSet() = runConfigurator.withGameTestSourceSet()
+    fun withDataGenSourceSet() = runConfigurator.withDataGenSourceSet()
+    fun withCommonRuns() = runConfigurator.withCommonRuns()
+    fun withDataGenRuns(cfg: Action<Run> = Action {}) = runConfigurator.withDataGenRuns(cfg)
+    fun withGameTestRuns(cfg: Action<Run> = Action {}) = runConfigurator.withGameTestRuns(cfg)
 }

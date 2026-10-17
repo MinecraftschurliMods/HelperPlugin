@@ -51,3 +51,4 @@ replay_pid*
 !src/**/build/
 !gradle-wrapper.jar
 !gradle-wrapper.properties
+.idea/

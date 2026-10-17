@@ -6,7 +6,9 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.UntrackedTask
 
+@UntrackedTask(because = "Appends to the GitHub Actions output file")
 abstract class WriteGitHubActionsOutputTask : DefaultTask() {
     @get:Input
     abstract val values: MapProperty<String, Any>

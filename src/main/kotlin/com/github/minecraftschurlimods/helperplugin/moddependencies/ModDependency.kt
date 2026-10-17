@@ -3,9 +3,12 @@ package com.github.minecraftschurlimods.helperplugin.moddependencies
 import com.github.minecraftschurlimods.helperplugin.localGradleProperty
 import org.gradle.api.Project
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
+import org.gradle.api.provider.SetProperty
 import org.gradle.kotlin.dsl.property
+import org.gradle.kotlin.dsl.setProperty
 
-class ModDependency(val name: String, project: Project) {
+class ModDependency(val name: String, project: Project, private val minecraftVersion: Provider<String>, runningInCI: Provider<Boolean>) {
 
     val modId: Property<String> = project.objects.property<String>()
         .convention(name)
@@ -18,6 +21,42 @@ class ModDependency(val name: String, project: Project) {
     val side: Property<Side> = project.objects.property()
     val modrinthId: Property<String> = project.objects.property()
     val curseforgeId: Property<String> = project.objects.property()
+    val reason: Property<String> = project.objects.property()
+    val referralUrl: Property<String> = project.objects.property()
+
+    // maven coordinates of the full mod jar and of its api jar, without an artifact nothing is added to the classpath
+    val artifact: Property<String> = project.objects.property()
+    val apiArtifact: Property<String> = project.objects.property()
+    // maven repository the artifacts are resolved from, restricted to the artifact's group
+    val repository: Property<String> = project.objects.property()
+    // whether optional dependencies are put on the runtime of the runs, off in CI by default
+    val devRuntime: Property<Boolean> = project.objects.property<Boolean>()
+        .convention(runningInCI.map { !it }.orElse(true))
+    // source sets the artifacts are added to, defaults to main (which the derived source sets inherit from)
+    val usedBy: SetProperty<String> = project.objects.setProperty<String>()
+
+    /**
+     * Sets the artifact from a notation where `{mc}` and `{version}` are replaced by the minecraft and dependency version.
+     * If [apiClassifier] is given, the api artifact is the same artifact with that classifier.
+     */
+    fun artifact(notation: String, apiClassifier: String? = null) {
+        artifact.set(resolve(notation))
+        if (apiClassifier != null) {
+            apiArtifact.set(artifact.map { "$it:$apiClassifier" })
+        }
+    }
+
+    fun artifact(notation: (mc: String, version: String) -> String) = artifact.set(minecraftVersion.zip(version, notation))
+
+    fun apiArtifact(notation: String) = apiArtifact.set(resolve(notation))
+
+    fun apiArtifact(notation: (mc: String, version: String) -> String) = apiArtifact.set(minecraftVersion.zip(version, notation))
+
+    fun repository(url: String) = repository.set(url)
+
+    fun usedBy(vararg sourceSets: String) = usedBy.addAll(*sourceSets)
+
+    private fun resolve(notation: String) = minecraftVersion.zip(version) { mc, version -> notation.replace("{mc}", mc).replace("{version}", version) }
 
     enum class Type {
         REQUIRED, OPTIONAL, INCOMPATIBLE, DISCOURAGED

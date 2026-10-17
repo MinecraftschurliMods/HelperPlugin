@@ -9,20 +9,26 @@ import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Project
+import org.gradle.api.component.SoftwareComponent
 import org.gradle.api.component.SoftwareComponentContainer
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.plugins.BasePluginExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.SourceSetOutput
+import org.gradle.api.tasks.TaskContainer
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
-import org.gradle.jvm.component.internal.JvmSoftwareComponentInternal
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.the
 import org.gradle.language.jvm.tasks.ProcessResources
+
+const val MOD_COMPILE_ONLY = "modCompileOnly"
 
 // TODO: remove this once https://github.com/gradle/gradle/issues/23572 is fixed
 fun Project.localGradleProperty(name: Provider<String>): Provider<String> = name.map(TransformerUtils.guard {
@@ -38,11 +44,12 @@ val Project.publishing: PublishingExtension get() = this.the<PublishingExtension
 val Project.runs: NamedDomainObjectContainer<Run> get() = this.extensions.getByName("runs") as NamedDomainObjectContainer<Run>
 val Project.jarJar: JarJar get() = this.the<JarJar>()
 
-val SoftwareComponentContainer.java: JvmSoftwareComponentInternal get() = this.getByName("java") as JvmSoftwareComponentInternal
+val SoftwareComponentContainer.java: SoftwareComponent get() = this.getByName("java")
 
 val SourceSetContainer.api: NamedDomainObjectProvider<SourceSet> get() = named("api")
 val SourceSetContainer.main: NamedDomainObjectProvider<SourceSet> get() = named("main")
 val SourceSetContainer.test: NamedDomainObjectProvider<SourceSet> get() = named("test")
+val SourceSetContainer.gametest: NamedDomainObjectProvider<SourceSet> get() = named("gametest")
 
 val NamedDomainObjectProvider<SourceSet>.output: Provider<SourceSetOutput> get() = map { it.output }
 val NamedDomainObjectProvider<SourceSet>.allJava: Provider<SourceDirectorySet> get() = map { it.allJava }
@@ -60,4 +67,6 @@ operator fun JavaPluginExtension.invoke(action: Action<JavaPluginExtension>) = a
 operator fun PublishingExtension.invoke(action: Action<PublishingExtension>) = action.execute(this)
 
 val NamedDomainObjectProvider<ModDependency>.version: Provider<String> get() = flatMap { it.version }
+val NamedDomainObjectProvider<ModDependency>.artifact: Provider<String> get() = flatMap { it.artifact }
+val NamedDomainObjectProvider<ModDependency>.apiArtifact: Provider<String> get() = flatMap { it.apiArtifact }
 val Run.idea:IdeaRunExtension get() = the<IdeaRunExtension>()
