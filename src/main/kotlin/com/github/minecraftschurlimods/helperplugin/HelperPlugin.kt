@@ -5,6 +5,7 @@ import com.github.minecraftschurlimods.helperplugin.moddependencies.wireModDepen
 import com.github.minecraftschurlimods.helperplugin.modstoml.GenerateModsTomlTask
 import com.github.minecraftschurlimods.helperplugin.modstoml.WriteGitHubActionsOutputTask
 import com.github.minecraftschurlimods.helperplugin.modstoml.toModsToml
+import net.neoforged.gradle.dsl.common.extensions.subsystems.Conventions
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project

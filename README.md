@@ -34,12 +34,8 @@ plugins {
 }
 
 helper.withApiSourceSet()
-helper.withDataGenSourceSet()
 helper.withTestSourceSet()
-
 helper.withCommonRuns()
-helper.withDataGenRuns()
-helper.withGameTestRuns()
 ```
 
 ## Configuration through `gradle.properties`
@@ -74,12 +70,17 @@ The version is `<mc_version>-<mod.version>`, suffixed with the `RELEASE_TYPE` en
 | `withDataGenSourceSet()`  | `data` source set, used by the data generation runs                                                                      |
 | `withTestSourceSet(cfg)`  | `test` source set for JUnit tests, with the NeoForge testframework and a `junit` run, see [Tests](#tests)                |
 | `withGameTestSourceSet()` | `gametest` source set for game tests                                                                                     |
-| `withCommonRuns()`        | `client` and `server` runs                                                                                               |
-| `withDataGenRuns(cfg)`    | `clientData` + `serverData` runs (`data` before 1.21.4), output to `src/main/generated`                                  |
-| `withGameTestRuns(cfg)`   | `gameTestServer` run, adds the `gametest` source set to it and to `client`                                               |
+| `withClientRun(prefix, cfg)` | `client` run (`<prefix>Client` with a prefix) |
+| `withServerRun(prefix, cfg)` | `server` run (`<prefix>Server` with a prefix), without gui |
+| `withDataGenRuns(useSeparateSourceSet, cfg)` | `clientData` + `serverData` runs (`data` before 1.21.4), output to `src/main/generated`, with the `data` source set unless `useSeparateSourceSet = false` |
+| `withRenderDocClientRun(prefix, cfg)` | client run with RenderDoc enabled |
+| `withGameTestRuns(cfg)` | `gameTestServer` run, adds the `gametest` source set, `-ea` and the game test namespace to the client and server runs |
+| `withCommonRuns()` | client, server, data generation and game test runs, instead of NeoGradle's default runs |
 | `withJarJar()`            | Makes the jar-in-jar jar the main artifact (the plain jar gets the `slim` classifier)                                    |
 
-Call order doesn't matter.
+Call order doesn't matter. Calling a run function again, e.g. `withDataGenRuns { ... }` after
+`withCommonRuns()`, only adds its configuration. Every run uses `run/` as working directory and
+has main as a mod source.
 
 ### Dependency layering
 
@@ -153,8 +154,7 @@ How artifacts are added (to main unless `usedBy(...)` names other source sets):
   `devRuntime` to override that per dependency.
 - **`api` as a target** only ever gets the compile artifact.
 - **Presets** `jei()`, `jade()`, `curios()` and `geckolib()` come with coordinates and
-  repositories, and everything can be overridden in their configuration block. `theoneprobe()`, `configured()` and
-  `catalogue()` only declare the mods.toml entry.
+  repositories, and everything can be overridden in their configuration block. `theoneprobe()` only declares the mods.toml entry.
 
 Declaring returns the `ModDependency`, so its `artifact`, `apiArtifact` and `version` providers
 can be used for anything unusual:

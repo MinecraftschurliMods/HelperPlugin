@@ -110,12 +110,11 @@ class ModDependencyWiringTest {
 
     @Test
     fun `dependencies without an artifact or of other types are not wired`() {
-        wire(project.helper.dependencies.configured())
-        val incompatible = project.helper.dependencies.register("geckolib") {
-            type.set(ModDependency.Type.INCOMPATIBLE)
+        wire(project.helper.dependencies.optional("dummy"))
+        val incompatible = project.helper.dependencies.incompatible("geckolib") {
             artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
         }
-        wire(incompatible.get())
+        wire(incompatible)
         for (configuration in listOf("implementation", "compileOnly", "runtimeOnly", "localRunRuntime")) {
             assertEquals(emptyList<String>(), declared(configuration), configuration)
         }
@@ -142,14 +141,20 @@ class ModDependencyWiringTest {
     }
 
     @Test
-    fun `repository of a lazily registered dependency is added when wiring`() {
-        val dependency = project.helper.dependencies.register("geckolib") {
+    fun `repository set after declaring is added when wiring`() {
+        // maybeCreate bypasses the create hook, the afterEvaluate wiring still adds the repository
+        val dependency = project.helper.dependencies.maybeCreate("geckolib").apply {
             type.set(ModDependency.Type.REQUIRED)
             artifact("com.geckolib:geckolib-neoforge-{mc}:{version}")
             repository("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/")
         }
-        wire(dependency.get())
+        wire(dependency)
         assertEquals(1, project.repositories.filter { it.name == "geckolib" }.size)
+    }
+
+    @Test
+    fun `lazy registration is not supported`() {
+        assertThrows(UnsupportedOperationException::class.java) { project.helper.dependencies.register("geckolib") }
     }
 
     @Test

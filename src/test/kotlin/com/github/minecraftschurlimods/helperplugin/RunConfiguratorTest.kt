@@ -34,21 +34,36 @@ class RunConfiguratorTest {
     }
 
     @Test
-    fun `game test sources only go to the game test server and client`() {
+    fun `game test sources go to the client and server runs but not the data runs`() {
         val project = modProject(dir)
         project.helper.withCommonRuns()
-        project.helper.withGameTestRuns()
         val gametest = project.sourceSet("gametest")
 
-        val gameTestServer = project.runs.getByName("gameTestServer")
-        val client = project.runs.getByName("client")
-        val server = project.runs.getByName("server")
-        assertTrue(gametest in gameTestServer.modSourceSets())
-        assertTrue(gametest in client.modSourceSets())
-        assertFalse(gametest in server.modSourceSets())
-        assertEquals(MOD_ID, gameTestServer.systemProperties.get()["neoforge.enabledGameTestNamespaces"])
-        assertEquals(MOD_ID, client.systemProperties.get()["neoforge.enabledGameTestNamespaces"])
-        assertFalse("neoforge.enabledGameTestNamespaces" in server.systemProperties.get())
+        for (name in listOf("gameTestServer", "client", "server")) {
+            val run = project.runs.getByName(name)
+            assertTrue(gametest in run.modSourceSets(), name)
+            assertEquals(MOD_ID, run.systemProperties.get()["neoforge.enabledGameTestNamespaces"], name)
+        }
+        val data = project.runs.getByName("clientData")
+        assertFalse(gametest in data.modSourceSets())
+        assertFalse("neoforge.enabledGameTestNamespaces" in data.systemProperties.get())
+    }
+
+    @Test
+    fun `run functions called after withCommonRuns only add their configuration`() {
+        val project = modProject(dir)
+        project.helper.withCommonRuns()
+        project.helper.withDataGenRuns { arguments.add("--existing-mod") }
+        project.helper.withGameTestRuns { jvmArgument("-Dexample=true") }
+
+        val data = project.runs.getByName("clientData").arguments.get()
+        assertEquals(1, data.count { it == "--mod" }, data.toString())
+        assertTrue("--existing-mod" in data, data.toString())
+        val gameTest = project.runs.getByName("gameTestServer").jvmArguments.get()
+        assertEquals(1, gameTest.count { it == "-ea" }, gameTest.toString())
+        assertTrue("-Dexample=true" in gameTest, gameTest.toString())
+        val gameTestArguments = project.runs.getByName("gameTestServer").arguments.get()
+        assertEquals(1, gameTestArguments.count { it == "--nogui" }, gameTestArguments.toString())
     }
 
     @Test

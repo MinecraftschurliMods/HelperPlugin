@@ -138,7 +138,7 @@ open class HelperExtension @Inject constructor(project: Project) {
         .convention(projectGroup.zip(projectId) { group, id -> "$group:$id" }.zip(fullVersion) { selector, version -> "$selector:$version" })
     val generatedResourcesDir: DirectoryProperty = project.objects.directoryProperty()
         .convention(project.layout.projectDirectory.dir("src/main/generated"))
-    val dependencies: ModDependencyContainer = ModDependencyContainer(project, minecraftVersion, runningInCI)
+    val dependencies: ModDependencyContainer = ModDependencyContainer.create(project, minecraftVersion, runningInCI)
     val modproperties: MapProperty<String, String> = project.objects.mapProperty()
 
     internal val useSplitDataRuns = minecraftVersion.map(::usesSplitDataRuns)
@@ -244,7 +244,10 @@ open class HelperExtension @Inject constructor(project: Project) {
     fun withTestSourceSet(cfg: Action<Run> = Action {}) = runConfigurator.withTestSourceSet(cfg)
     fun withGameTestSourceSet() = runConfigurator.withGameTestSourceSet()
     fun withDataGenSourceSet() = runConfigurator.withDataGenSourceSet()
-    fun withCommonRuns() = runConfigurator.withCommonRuns()
-    fun withDataGenRuns(cfg: Action<Run> = Action {}) = runConfigurator.withDataGenRuns(cfg)
+    fun withClientRun(prefix: String? = null, cfg: Action<Run> = Action {}) = runConfigurator.withClientRun(prefix, cfg)
+    fun withRenderDocClientRun(prefix: String? = null, cfg: Action<Run> = Action {}) = runConfigurator.withRenderDocClientRun(prefix, cfg)
+    fun withServerRun(prefix: String? = null, cfg: Action<Run> = Action {}) = runConfigurator.withServerRun(prefix, cfg)
+    fun withDataGenRuns(useSeparateSourceSet: Boolean = true, cfg: Action<Run> = Action {}) = runConfigurator.withDataGenRuns(useSeparateSourceSet, cfg)
     fun withGameTestRuns(cfg: Action<Run> = Action {}) = runConfigurator.withGameTestRuns(cfg)
+    fun withCommonRuns() = runConfigurator.withCommonRuns()
 }

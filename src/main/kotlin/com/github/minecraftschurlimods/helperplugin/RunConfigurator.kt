@@ -3,17 +3,16 @@
 package com.github.minecraftschurlimods.helperplugin
 
 import net.neoforged.gradle.common.tasks.JarJar
-import net.neoforged.gradle.dsl.common.extensions.subsystems.Subsystems
 import net.neoforged.gradle.dsl.common.runs.run.Run
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
+import org.gradle.api.NamedDomainObjectSet
 import org.gradle.api.Project
+import org.gradle.api.plugins.ExtensionAware
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.bundling.Jar
-import org.gradle.kotlin.dsl.assign
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.get
-import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.named
 
@@ -95,7 +94,7 @@ internal class RunConfigurator(private val project: Project, private val ext: He
             testSet.runtimeOnlyConfigurationName("org.junit.platform:junit-platform-launcher")
         }
         // let NeoGradle configure the stock test task instead of creating its own (off by default)
-        project.extensions.getByType<Subsystems>().conventions.runs.shouldDefaultTestTaskBeReused.set(true)
+        project.subsystems.conventions.runs.shouldDefaultTestTaskBeReused.set(true)
         project.runs.maybeCreate("junit").apply {
             isJUnit.set(true)
             runType("junit")
@@ -121,32 +120,62 @@ internal class RunConfigurator(private val project: Project, private val ext: He
 
     fun withDataGenSourceSet() {
         if (dataGenSourceSet != null) return
-        val dataSet = createDerivedSourceSet("data")
-        dataGenSourceSet = dataSet
+        dataGenSourceSet = createDerivedSourceSet("data")
         project.runs.matching { it.isDataRun() }.all {
-            modSources.add(dataSet)
-            idea.primarySourceSet = dataSet
+            modSources.add(dataGenSourceSet)
+            idea.primarySourceSet.set(dataGenSourceSet)
         }
     }
 
-    fun withCommonRuns() {
-        project.runs {
-            maybeCreate("client")
-            maybeCreate("server").apply {
-                singleInstance()
-                arguments.add("--nogui")
-            }
+    fun withClientRun(prefix: String? = null, cfg: Action<Run> = Action {}) {
+        project.runs.maybeCreate(if (prefix != null) "${prefix}Client" else "client").apply {
+            cfg.execute(this)
         }
     }
 
-    fun withDataGenRuns(cfg: Action<Run> = Action<Run>{}) {
+    fun withRenderDocClientRun(prefix: String? = null, cfg: Action<Run> = Action {}) = withClientRun(prefix) {
+        renderDoc.enabled.set(true)
+        cfg.execute(this)
+    }
+
+    fun withServerRun(prefix: String? = null, cfg: Action<Run> = Action {}) {
+        project.runs.maybeCreate(if (prefix != null) "${prefix}Server" else "server").apply {
+            configureServer()
+            cfg.execute(this)
+        }
+    }
+
+    fun withDataGenRuns(useSeparateSourceSet: Boolean = true, cfg: Action<Run> = Action {}) {
+        if (useSeparateSourceSet) withDataGenSourceSet()
+        configureDataGenRuns()
+        project.runs.matching { it.isDataRun() }.all(cfg)
+    }
+
+    fun withGameTestRuns(cfg: Action<Run> = Action {}) {
+        withGameTestSourceSet()
+        withServerRun("gameTest") {
+            idea.primarySourceSet.set(gameTestSourceSet)
+            cfg.execute(this)
+        }
+        configureGameTestRuns()
+    }
+
+    fun withCommonRuns(includeDataGen: Boolean = true, includeGameTests: Boolean = true) {
+        project.subsystems.conventions.runs.shouldDefaultRunsBeCreated.set(false)
+        withClientRun()
+        withServerRun()
+        if (includeDataGen) withDataGenRuns()
+        if (includeGameTests) withGameTestRuns()
+    }
+
+    private fun configureDataGenRuns() {
         if (ext.useSplitDataRuns.get()) {
             project.runs.maybeCreate("clientData")
             project.runs.maybeCreate("serverData")
         } else {
             project.runs.maybeCreate("data")
         }
-        project.runs.matching { it.isDataRun() }.all {
+        project.runs.matching { it.isDataRun() }.configureEachOnce("dataGen") {
             singleInstance()
             arguments.add("--mod")
             arguments.add(ext.projectId)
@@ -155,7 +184,6 @@ internal class RunConfigurator(private val project: Project, private val ext: He
             arguments.add(ext.generatedResourcesDir.map { it.asFile.absolutePath })
             arguments.add("--existing")
             arguments.add(project.layout.projectDirectory.dir("src/main/resources/").asFile.absolutePath)
-            cfg.execute(this)
         }
         project.sourceSets.main {
             resources {
@@ -165,22 +193,33 @@ internal class RunConfigurator(private val project: Project, private val ext: He
         }
     }
 
-    fun withGameTestRuns(cfg: Action<Run> = Action<Run>{}) {
-        withGameTestSourceSet()
-        val gameTest = gameTestSourceSet!!
-        project.runs.maybeCreate("gameTestServer").apply {
-            singleInstance()
+    private fun configureGameTestRuns() {
+        project.runs.matching { it.isClientRun() || it.isServerRun() }.configureEachOnce("gameTest") {
             jvmArgument("-ea")
-            modSources.add(gameTest)
-            systemProperties.put("neoforge.enabledGameTestNamespaces", ext.projectId)
-            idea.primarySourceSet = gameTest
-            cfg.execute(this)
-        }
-        project.runs.matching { it.name == "client" }.configureEach {
-            modSources.add(gameTest)
+            modSources.add(gameTestSourceSet)
             systemProperties.put("neoforge.enabledGameTestNamespaces", ext.projectId)
         }
     }
 
+    private fun Run.configureServer(gui: Boolean = false) = configureOnce("server") {
+        singleInstance()
+        if (!gui) {
+            arguments.add("--nogui")
+        }
+    }
+
+    // applies a base configuration only once per run, so the run functions can be called repeatedly and only add their cfg
+    private fun Run.configureOnce(key: String, action: Run.() -> Unit) {
+        val extra = (this as ExtensionAware).extensions.extraProperties
+        val marker = "helperplugin.configured.$key"
+        if (extra.has(marker)) return
+        extra.set(marker, true)
+        action()
+    }
+
+    private fun NamedDomainObjectSet<Run>.configureEachOnce(key: String, action: Run.() -> Unit) = configureEach { configureOnce(key, action) }
+
     private fun Run.isDataRun(): Boolean = if (ext.useSplitDataRuns.get()) name == "clientData" || name == "serverData" else name == "data"
+    private fun Run.isClientRun(): Boolean = name == "client" || name.endsWith("Client")
+    private fun Run.isServerRun(): Boolean = name == "server" || name.endsWith("Server")
 }

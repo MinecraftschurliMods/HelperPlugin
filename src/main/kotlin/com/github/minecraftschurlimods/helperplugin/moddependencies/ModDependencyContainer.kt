@@ -7,18 +7,37 @@ import org.gradle.api.provider.Provider
 
 open class ModDependencyContainer(
     private val project: Project,
-    minecraftVersion: Provider<String>,
-    runningInCI: Provider<Boolean>
-) : NamedDomainObjectContainer<ModDependency> by project.objects.domainObjectContainer(ModDependency::class.java, { name -> ModDependency(name, project, minecraftVersion, runningInCI) }) {
-    fun optional(name: String, cfg: Action<ModDependency> = Action {}) = declare(name, ModDependency.Type.OPTIONAL, cfg)
-    fun required(name: String, cfg: Action<ModDependency> = Action {}) = declare(name, ModDependency.Type.REQUIRED, cfg)
-
-    private fun declare(name: String, type: ModDependency.Type, cfg: Action<ModDependency>): ModDependency = create(name) {
-        this.type.set(type)
-        cfg.execute(this)
+    private val delegate: NamedDomainObjectContainer<ModDependency>
+) : NamedDomainObjectContainer<ModDependency> by delegate {
+    override fun create(name: String) = delegate.create(name) {
         // created eagerly so the repository exists before NeoGradle resolves anything, see addModDependencyRepository.
         // the repository is added here and not in configureEach, as create adds the object before running the action
         project.addModDependencyRepository(this)
+    }
+    override fun create(name: String, configurationAction: Action<in ModDependency>) = delegate.create(name) {
+        configurationAction.execute(this)
+        // created eagerly so the repository exists before NeoGradle resolves anything, see addModDependencyRepository.
+        // the repository is added here and not in configureEach, as create adds the object before running the action
+        project.addModDependencyRepository(this)
+    }
+    override fun register(name: String) = throw UnsupportedOperationException("ModDependencyContainer does not support lazy registration, use create instead")
+    override fun register(name: String, configurationAction: Action<in ModDependency>) = throw UnsupportedOperationException("ModDependencyContainer does not support lazy registration, use create instead")
+
+    fun optional(name: String, cfg: Action<ModDependency> = Action {}) = create(name) {
+        type.set(ModDependency.Type.OPTIONAL)
+        cfg.execute(this)
+    }
+    fun required(name: String, cfg: Action<ModDependency> = Action {}) = create(name) {
+        type.set(ModDependency.Type.REQUIRED)
+        cfg.execute(this)
+    }
+    fun incompatible(name: String, cfg: Action<ModDependency> = Action {}) = create(name) {
+        type.set(ModDependency.Type.INCOMPATIBLE)
+        cfg.execute(this)
+    }
+    fun discouraged(name: String, cfg: Action<ModDependency> = Action {}) = create(name) {
+        type.set(ModDependency.Type.DISCOURAGED)
+        cfg.execute(this)
     }
 
     fun jei(cfg: Action<ModDependency> = Action {}) = optional("jei") {
@@ -43,8 +62,6 @@ open class ModDependencyContainer(
         repository("https://maven.theillusivec4.top/")
         cfg.execute(this)
     }
-    fun configured(cfg: Action<ModDependency> = Action {}) = optional("configured", cfg)
-    fun catalogue(cfg: Action<ModDependency> = Action {}) = optional("catalogue", cfg)
     fun geckolib(cfg: Action<ModDependency> = Action {}) = required("geckolib") {
         ordering.set(ModDependency.Ordering.BEFORE)
         side.set(ModDependency.Side.BOTH)
@@ -56,5 +73,16 @@ open class ModDependencyContainer(
     operator fun invoke(cfg: Action<ModDependencyContainer>): ModDependencyContainer {
         cfg.execute(this)
         return this
+    }
+
+    companion object {
+        fun create(project: Project, minecraftVersion: Provider<String>, runningInCI: Provider<Boolean>): ModDependencyContainer = ModDependencyContainer(project, project.objects.domainObjectContainer(ModDependency::class.java) { name ->
+            ModDependency(
+                name,
+                project,
+                minecraftVersion,
+                runningInCI
+            )
+        })
     }
 }
