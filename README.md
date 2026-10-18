@@ -1,4 +1,4 @@
-# HelperPlugin
+# ModHelper
 
 A Gradle plugin that takes the boilerplate out of NeoForge mod workspaces built with
 [NeoGradle](https://github.com/neoforged/NeoGradle). It applies NeoGradle's userdev plugin and
@@ -13,7 +13,7 @@ configures most of a mod workspace from `gradle.properties`: publishing, the gen
 pluginManagement {
     plugins {
         id("net.neoforged.gradle.userdev") version "7.1.38"
-        id("com.github.minecraftschurlimods.helperplugin") version "2.0"
+        id("at.minecraftschurli.gradle.modhelper") version "2.0"
     }
     repositories {
         gradlePluginPortal()
@@ -30,7 +30,7 @@ mod, not by the plugin release.
 
 ```kotlin
 plugins {
-    id("com.github.minecraftschurlimods.helperplugin")
+    id("at.minecraftschurli.gradle.modhelper")
 }
 
 helper.withApiSourceSet()

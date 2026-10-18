@@ -1,1 +1,1 @@
-rootProject.name = "helperplugin"
+rootProject.name = "modhelper"

@@ -4,9 +4,9 @@ plugins {
     kotlin("plugin.serialization") version embeddedKotlinVersion
 }
 
-group = "com.github.minecraftschurlimods"
+group = "at.minecraftschurli.gradle"
 version = "2.0"
-base.archivesName = "helperplugin"
+base.archivesName = "modhelper"
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 
@@ -54,11 +54,11 @@ testing {
 gradlePlugin {
     testSourceSets(sourceSets["functionalTest"])
     plugins {
-        create("helper") {
-            id = "com.github.minecraftschurlimods.helperplugin"
-            displayName = "Helper Plugin"
+        create("modhelper") {
+            id = "at.minecraftschurli.gradle.modhelper"
+            displayName = "Mod Helper"
             description = "A gradle helper plugin built on-top of the neoforged/NeoGradle plugin"
-            implementationClass = "com.github.minecraftschurlimods.helperplugin.HelperPlugin"
+            implementationClass = "at.minecraftschurli.gradle.modhelper.ModHelperPlugin"
         }
     }
 }
