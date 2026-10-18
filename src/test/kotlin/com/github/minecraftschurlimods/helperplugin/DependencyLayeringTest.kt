@@ -2,6 +2,7 @@ package com.github.minecraftschurlimods.helperplugin
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.FileCollectionDependency
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -31,6 +32,16 @@ class DependencyLayeringTest {
         assertFalse("compileOnly" in compileOnly)
         assertFalse("implementation" in project.hierarchy(api.implementationConfigurationName))
         assertFalse("runtimeOnly" in project.hierarchy(api.runtimeOnlyConfigurationName))
+    }
+
+    @Test
+    fun `api feature capability is named after the artifact`() {
+        val project = modProject(dir)
+        project.helper.withApiSourceSet()
+        for (configuration in listOf("apiApiElements", "apiRuntimeElements")) {
+            val capabilities = project.configurations.getByName(configuration).outgoing.capabilities
+            assertEquals(listOf("com.example:$MOD_ID-api:${project.version}"), capabilities.map { "${it.group}:${it.name}:${it.version}" }, configuration)
+        }
     }
 
     @ParameterizedTest

@@ -54,7 +54,12 @@ internal class RunConfigurator(private val project: Project, private val ext: He
         apiSourceSet = apiSet
         project.java.registerFeature("api") {
             usingSourceSet(apiSet)
+            // named after the artifact instead of the gradle project, so consumers can use requireFeature("api")
+            capability(project.group.toString(), "${ext.projectId.get()}-api", project.version.toString())
         }
+        // maven consumers use the api classifier, the capability only exists in the gradle module metadata
+        ext.publication.suppressPomMetadataWarningsFor(apiSet.apiElementsConfigurationName)
+        ext.publication.suppressPomMetadataWarningsFor(apiSet.runtimeElementsConfigurationName)
         // api must not inherit from main, it only gets the shared compile only dependencies
         project.configurations.named(apiSet.compileOnlyConfigurationName) { extendsFrom(project.configurations[MOD_COMPILE_ONLY]) }
         project.dependencies {
