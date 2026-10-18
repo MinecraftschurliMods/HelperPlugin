@@ -86,7 +86,7 @@ class ModsTomlFactoryTest {
 
         val dependencies = project.toml().dependencies!!.getValue(MOD_ID).associateBy { it.modId }
         assertEquals(setOf("neoforge", "minecraft", "jei"), dependencies.keys)
-        assertEquals(Dependency("neoforge", "required", null, "[26.1.2.99,26.2)", "NONE", "BOTH", null, null), dependencies["neoforge"])
-        assertEquals(Dependency("jei", "optional", "integration", "[29,30)", "AFTER", null, null, null), dependencies["jei"])
+        assertEquals(Dependency("neoforge", "[26.1.2.99,26.2)", "required", null, "NONE", "BOTH", null, null), dependencies["neoforge"])
+        assertEquals(Dependency("jei", "[29,30)", "optional", "integration", "AFTER", null, null, null), dependencies["jei"])
     }
 }

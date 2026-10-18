@@ -68,9 +68,9 @@ data class McPublish(
 @Serializable
 data class Dependency(
     val modId: String,
+    val versionRange: String,
     val type: String,
     val reason: String?,
-    val versionRange: String,
     val ordering: String?,
     val side: String?,
     val referralUrl: String?,

@@ -45,6 +45,19 @@ class HelperPluginFunctionalTest {
     }
 
     @Test
+    fun `feature flags file is only packaged when there are flags`() {
+        fixture.buildScript("")
+        fixture.run("processResources")
+        assertFalse(fixture.file("build/resources/main/META-INF/feature_flags.json").exists(), "packaged without flags")
+
+        fixture.buildScript("helper.featureFlags.add(\"wip\")")
+        fixture.run("processResources")
+        val flags = fixture.file("build/resources/main/META-INF/feature_flags.json")
+        assertTrue(flags.exists(), "not packaged with flags")
+        assertTrue("examplemod:wip" in flags.readText(), flags.readText())
+    }
+
+    @Test
     fun `stock test task is used without the api source set`() {
         fixture.buildScript("helper.withTestSourceSet()")
         val output = fixture.run("test", "--dry-run").output

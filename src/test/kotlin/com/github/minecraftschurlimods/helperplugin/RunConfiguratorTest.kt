@@ -81,6 +81,14 @@ class RunConfiguratorTest {
     }
 
     @Test
+    fun `javadoc is generated in english without timestamp`() {
+        val options = modProject(dir).tasks.javadoc.get().options
+        assertEquals("en_GB", options.locale)
+        assertTrue(options.jFlags.orEmpty().containsAll(listOf("-Duser.language=en", "-Duser.country=GB")), options.jFlags.toString())
+        assertTrue((options as org.gradle.external.javadoc.StandardJavadocDocletOptions).isNoTimestamp)
+    }
+
+    @Test
     fun `access transformers are passed to NeoGradle`() {
         File(dir, "src/main/resources/META-INF").mkdirs()
         val at = File(dir, "src/main/resources/META-INF/accesstransformer.cfg").apply { writeText("") }

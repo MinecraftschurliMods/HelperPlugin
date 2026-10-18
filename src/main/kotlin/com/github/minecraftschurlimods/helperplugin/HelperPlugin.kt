@@ -162,7 +162,11 @@ class HelperPlugin : Plugin<Project> {
             options.compilerArgs.add("-Xlint:-removal")
         }
         javadoc {
-            options.locale = "en_US"
+            options.locale = "en_GB"
+            // -locale only sets the html lang, the doclet's own texts follow the default locale of the javadoc jvm
+            options.jFlags("-Duser.language=en", "-Duser.country=GB")
+            // no generation date in the html, so the javadoc jar is reproducible
+            (options as StandardJavadocDocletOptions).noTimestamp(true)
             options.encoding = "UTF-8"
             (options as CoreJavadocOptions).addStringOption("Xdoclint:all,-missing", "-public")
             (options as StandardJavadocDocletOptions).tags = listOf(
@@ -213,8 +217,11 @@ class HelperPlugin : Plugin<Project> {
                 from(generateModsToml) {
                     into("META-INF/")
                 }
+                // the file is always generated, but only packaged (and referenced from the mods toml) if there are flags
+                val noFeatureFlags = helperExtension.featureFlags.map { it.isEmpty() }.orElse(true)
                 from(generateFeatureFlagsFile) {
                     into("META-INF/")
+                    exclude { noFeatureFlags.get() }
                 }
             }
         }

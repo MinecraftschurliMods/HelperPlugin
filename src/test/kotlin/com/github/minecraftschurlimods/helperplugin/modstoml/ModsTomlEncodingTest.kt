@@ -28,8 +28,8 @@ class ModsTomlEncodingTest {
         mcPublish = McPublish("abc", 123),
         dependencies = mapOf(
             "examplemod" to listOf(
-                Dependency("neoforge", "required", null, "[21,)", "NONE", "BOTH", null, null),
-                Dependency("jei", "optional", "integration", "[1,)", null, null, null, DependencyMcPublish("jei", "jei")),
+                Dependency("neoforge", "[21,)", "required", null, "NONE", "BOTH", null, null),
+                Dependency("jei", "[1,)", "optional", "integration", null, null, null, DependencyMcPublish("jei", "jei")),
             )
         ),
         modproperties = mapOf("examplemod" to mapOf("p" to "q")),
@@ -80,16 +80,16 @@ Line "two"
 
 [[dependencies.examplemod]]
     modId = "neoforge"
-    type = "required"
     versionRange = "[21,)"
+    type = "required"
     ordering = "NONE"
     side = "BOTH"
 
 [[dependencies.examplemod]]
     modId = "jei"
+    versionRange = "[1,)"
     type = "optional"
     reason = "integration"
-    versionRange = "[1,)"
 
     [dependencies.examplemod.mc-publish]
         modrinth = "jei"
