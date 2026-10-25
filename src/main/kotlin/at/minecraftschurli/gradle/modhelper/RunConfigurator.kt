@@ -121,6 +121,10 @@ internal class RunConfigurator(private val project: Project, private val ext: He
     fun withGameTestSourceSet() {
         if (gameTestSourceSet != null) return
         gameTestSourceSet = createDerivedSourceSet("gametest")
+        // the testframework provides the game test annotations (vanilla removed its own in 26.1) and helpers, no junit needed
+        project.dependencies {
+            gameTestSourceSet?.implementationConfigurationName(ext.testframework())
+        }
     }
 
     fun withDataGenSourceSet() {

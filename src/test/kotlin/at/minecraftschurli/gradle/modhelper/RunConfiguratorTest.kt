@@ -68,6 +68,14 @@ class RunConfiguratorTest {
     }
 
     @Test
+    fun `game test source set gets the testframework`() {
+        val project = modProject(dir)
+        project.helper.withGameTestSourceSet()
+        val dependencies = project.configurations.getByName("gametestImplementation").dependencies.map { "${it.group}:${it.name}" }
+        assertTrue("net.neoforged:testframework" in dependencies, dependencies.toString())
+    }
+
+    @Test
     fun `javadoc only covers the api source set`() {
         File(dir, "src/main/java/com/example").mkdirs()
         File(dir, "src/main/java/com/example/Impl.java").writeText("package com.example; class Impl {}")

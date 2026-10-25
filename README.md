@@ -113,7 +113,10 @@ NeoForge is added to main's `implementation` automatically.
   ```
 
 - **`gametest`** holds world-based game tests, with their structures and test data in
-  `src/gametest/resources`. Run them with `./gradlew runGameTestServer` or `/test` in the client.
+  `src/gametest/resources`. It has the NeoForge testframework on its classpath, which provides the
+  game test annotations since 26.1 removed vanilla's (`@GameTest`, `@TestHolder`,
+  `ExtendedGameTestHelper`, ...). Run them with `./gradlew runGameTestServer` or `/test` in the
+  client.
 
 ## Mod dependencies
 
